@@ -1,0 +1,10 @@
+services:
+  loopdish-preview:
+    command: pnpm start:orb
+    health: /
+    portal:
+      url: /
+      title: LoopDish
+      description: Sign in with Google to test the dinner planner.
+    review: true
+    agent: control

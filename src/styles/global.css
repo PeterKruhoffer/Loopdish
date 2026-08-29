@@ -1,0 +1,71 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap');
+
+@layer reset, base, priority1, priority2, priority3;
+
+@layer reset {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  h1,
+  h2,
+  h3,
+  p {
+    margin: 0;
+  }
+}
+
+@layer base {
+  :root {
+    color: #25241f;
+    background: #f7f3ea;
+    font-family: 'DM Sans', system-ui, sans-serif;
+    font-synthesis: none;
+  }
+
+  html {
+    min-width: 320px;
+    background: #f7f3ea;
+  }
+
+  body {
+    min-width: 320px;
+    min-height: 100vh;
+    margin: 0;
+    background: radial-gradient(circle at 85% 4%, rgb(232 99 46 / 8%), transparent 25rem), #f7f3ea;
+  }
+
+  button,
+  input,
+  select {
+    color: inherit;
+    font: inherit;
+  }
+
+  button,
+  select {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: wait;
+    opacity: 0.58;
+  }
+
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible {
+    outline: 3px solid rgb(232 99 46 / 28%);
+    outline-offset: 2px;
+  }
+
+  code {
+    padding: 2px 5px;
+    border-radius: 4px;
+    color: #7c311a;
+    background: #f7dfcf;
+    font-size: 0.9em;
+  }
+}
