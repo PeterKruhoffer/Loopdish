@@ -169,7 +169,7 @@ export function ConnectedHome({ view }: { view: AppView }) {
             <FirstRunGuide />
           </>
         )}
-        <StatusMessage message={dashboard.message} />
+        {view !== 'dishes' && <StatusMessage message={dashboard.message} />}
         {(view === 'week' || view === 'dishes') && dashboard.isPending ? (
           <DashboardSkeleton view={view} />
         ) : view === 'week' ? (
@@ -196,7 +196,12 @@ export function ConnectedHome({ view }: { view: AppView }) {
           </>
         ) : view === 'dishes' ? (
           <>
-            <Dishes dishes={data?.dishes ?? []} busy={dashboard.busy} onAdd={dashboard.addDish} />
+            <Dishes
+              dishes={data?.dishes ?? []}
+              busy={dashboard.busy}
+              statusMessage={dashboard.message}
+              onAdd={dashboard.addDish}
+            />
             <History meals={data?.recentMeals ?? []} />
           </>
         ) : view === 'household' ? (

@@ -82,6 +82,15 @@ export function PlusIcon() {
   )
 }
 
+export function SearchIcon() {
+  return (
+    <Icon>
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-4-4" />
+    </Icon>
+  )
+}
+
 export function SunIcon() {
   return (
     <Icon fill>
