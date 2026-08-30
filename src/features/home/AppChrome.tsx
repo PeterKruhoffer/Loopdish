@@ -1,7 +1,7 @@
 import * as stylex from '@stylexjs/stylex'
 import { Link } from '@tanstack/react-router'
 import type { PointerEvent, ReactNode } from 'react'
-import { CalendarIcon, HeartIcon, HomeIcon, SunIcon } from '~/components/ui/Icon'
+import { CalendarIcon, HeartIcon, HomeIcon, SunIcon, UsersIcon } from '~/components/ui/Icon'
 import { LanguageSelect } from '~/components/ui/LanguageSelect'
 import { Logo } from '~/components/ui/Logo'
 import { useI18n } from '~/lib/i18n'
@@ -36,6 +36,7 @@ const styles = stylex.create({
     boxShadow: '0 4px 14px rgb(73 58 39 / 6%)',
     fontSize: 12,
     fontWeight: 700,
+    textDecoration: 'none',
     transition: 'border-color 160ms ease, background-color 160ms ease, transform 160ms ease',
     [mobile]: { width: 42, padding: 5 },
     ':hover': {
@@ -56,7 +57,7 @@ const styles = stylex.create({
     fontSize: 11,
     fontWeight: 800,
   },
-  signOutLabel: { [mobile]: { display: 'none' } },
+  accountLabel: { [mobile]: { display: 'none' } },
   hero: {
     position: 'relative',
     padding: '38px 0 36px',
@@ -90,8 +91,8 @@ const styles = stylex.create({
     left: 0,
     display: 'grid',
     height: 78,
-    gridTemplateColumns: 'repeat(3, 1fr)',
-    padding: '10px 28px max(12px, env(safe-area-inset-bottom))',
+    gridTemplateColumns: 'repeat(4, 1fr)',
+    padding: '10px 18px max(12px, env(safe-area-inset-bottom))',
     borderTop: `1px solid ${colors.line}`,
     backgroundColor: 'rgb(255 254 249 / 94%)',
     backdropFilter: 'blur(12px)',
@@ -112,11 +113,11 @@ const styles = stylex.create({
 export function AppHeader({
   name,
   email,
-  onSignOut,
+  householdName,
 }: {
   name?: string | null
   email?: string | null
-  onSignOut: () => void
+  householdName?: string
 }) {
   const { t } = useI18n()
   return (
@@ -124,17 +125,17 @@ export function AppHeader({
       <Logo />
       <div {...stylex.props(styles.headerActions)}>
         <LanguageSelect />
-        <button
+        <Link
           {...stylex.props(styles.account)}
-          aria-label={t.signOut}
-          title={t.signOut}
-          onClick={onSignOut}
+          aria-label={t.account}
+          title={t.account}
+          to="/household"
         >
           <span {...stylex.props(styles.avatar)} aria-hidden="true">
             {(name || email || 'M').slice(0, 1).toUpperCase()}
           </span>
-          <span {...stylex.props(styles.signOutLabel)}>{t.signOut}</span>
-        </button>
+          <span {...stylex.props(styles.accountLabel)}>{householdName || t.household}</span>
+        </Link>
       </div>
     </header>
   )
@@ -162,7 +163,7 @@ function NavItem({
   onNavigate,
   children,
 }: {
-  to: '/' | '/week' | '/dishes'
+  to: '/' | '/week' | '/dishes' | '/household'
   active: boolean
   onNavigate: () => void
   children: ReactNode
@@ -187,8 +188,8 @@ export function BottomNav({
   activeView,
   onNavigate,
 }: {
-  activeView: 'today' | 'week' | 'dishes'
-  onNavigate: (view: 'today' | 'week' | 'dishes') => void
+  activeView: 'today' | 'week' | 'dishes' | 'household'
+  onNavigate: (view: 'today' | 'week' | 'dishes' | 'household') => void
 }) {
   const { t } = useI18n()
   return (
@@ -205,6 +206,13 @@ export function BottomNav({
         onNavigate={() => onNavigate('dishes')}
       >
         <HeartIcon /> <span>{t.dishes}</span>
+      </NavItem>
+      <NavItem
+        to="/household"
+        active={activeView === 'household'}
+        onNavigate={() => onNavigate('household')}
+      >
+        <UsersIcon /> <span>{t.household}</span>
       </NavItem>
     </nav>
   )

@@ -5,6 +5,7 @@ import { useMemo, useState, type PointerEvent } from 'react'
 import { CalendarIcon, HeartIcon } from '~/components/ui/Icon'
 import { Dishes } from '~/features/dishes/Dishes'
 import { History } from '~/features/history/History'
+import { Household } from '~/features/household/Household'
 import { PlanDinner } from '~/features/week/PlanDinner'
 import { WeekPlanner } from '~/features/week/WeekPlanner'
 import { makeWeek } from '~/lib/dates'
@@ -17,7 +18,7 @@ import { useDinnerDashboard } from './useDinnerDashboard'
 const tablet = '@media (min-width: 720px)'
 const display = 'Manrope, system-ui, sans-serif'
 
-export type AppView = 'today' | 'week' | 'dishes'
+export type AppView = 'today' | 'week' | 'dishes' | 'household'
 
 const styles = stylex.create({
   shell: {
@@ -181,7 +182,7 @@ export function ConnectedHome({ view }: { view: AppView }) {
   return (
     <div {...stylex.props(styles.shell)}>
       <NavigationShimmer active={pendingView !== null} />
-      <AppHeader name={user?.firstName} email={user?.email} onSignOut={() => void signOut()} />
+      <AppHeader name={user?.firstName} email={user?.email} householdName={data?.household?.name} />
       <main>
         {visibleView === 'today' && (
           <>
@@ -190,7 +191,8 @@ export function ConnectedHome({ view }: { view: AppView }) {
           </>
         )}
         {!pendingView && <StatusMessage message={dashboard.message} />}
-        {visibleView !== 'today' && (pendingView || dashboard.isPending) ? (
+        {(visibleView === 'week' || visibleView === 'dishes') &&
+        (pendingView || dashboard.isPending) ? (
           <DashboardSkeleton view={visibleView} />
         ) : visibleView === 'week' ? (
           <>
@@ -219,6 +221,8 @@ export function ConnectedHome({ view }: { view: AppView }) {
             <Dishes dishes={data?.dishes ?? []} busy={dashboard.busy} onAdd={dashboard.addDish} />
             <History meals={data?.recentMeals ?? []} />
           </>
+        ) : visibleView === 'household' ? (
+          <Household onSignOut={() => void signOut()} />
         ) : null}
       </main>
       <BottomNav activeView={visibleView} onNavigate={beginNavigation} />

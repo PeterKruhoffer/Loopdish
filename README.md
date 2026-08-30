@@ -43,13 +43,14 @@ pnpm refuses package versions published less than five days ago, including pinne
 ## Current scope
 
 - Add dishes to the shared household collection
+- Name a household and invite other signed-in people with a private, one-use link
 - Plan one dinner per day
 - Mark a planned dinner as eaten
 - See recent dinner history and live updates from Convex
 - Install the production build as a PWA
 - Sign in with Google through WorkOS AuthKit
 
-Each signed-in WorkOS user currently gets a private household keyed by their authenticated identity. Shared household membership is not implemented yet.
+Each signed-in WorkOS user starts with a private household. People who accept an invite share its dishes, weekly plan, and dinner history.
 
 ## PWA note
 

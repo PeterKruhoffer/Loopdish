@@ -7,6 +7,25 @@ export default defineSchema({
     slug: v.string(),
   }).index('by_slug', ['slug']),
 
+  householdMembers: defineTable({
+    householdId: v.id('households'),
+    userSlug: v.string(),
+    name: v.string(),
+    email: v.optional(v.string()),
+    role: v.union(v.literal('owner'), v.literal('member')),
+    joinedAt: v.number(),
+  })
+    .index('by_user', ['userSlug'])
+    .index('by_household', ['householdId']),
+
+  householdInvites: defineTable({
+    householdId: v.id('households'),
+    createdByMemberId: v.id('householdMembers'),
+    expiresAt: v.number(),
+    acceptedAt: v.optional(v.number()),
+    acceptedByMemberId: v.optional(v.id('householdMembers')),
+  }).index('by_household', ['householdId']),
+
   dishes: defineTable({
     householdId: v.id('households'),
     name: v.string(),

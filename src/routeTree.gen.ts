@@ -11,7 +11,9 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DishesRouteImport } from './routes/dishes'
+import { Route as HouseholdRouteImport } from './routes/household'
 import { Route as WeekRouteImport } from './routes/week'
+import { Route as JoinInviteIdRouteImport } from './routes/join/$inviteId'
 import { Route as ApiAuthCallbackRouteImport } from './routes/api/auth/callback'
 import { Route as ApiAuthSignInRouteImport } from './routes/api/auth/sign-in'
 
@@ -25,9 +27,19 @@ const DishesRoute = DishesRouteImport.update({
   path: '/dishes',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HouseholdRoute = HouseholdRouteImport.update({
+  id: '/household',
+  path: '/household',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const WeekRoute = WeekRouteImport.update({
   id: '/week',
   path: '/week',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const JoinInviteIdRoute = JoinInviteIdRouteImport.update({
+  id: '/join/$inviteId',
+  path: '/join/$inviteId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAuthCallbackRoute = ApiAuthCallbackRouteImport.update({
@@ -44,14 +56,18 @@ const ApiAuthSignInRoute = ApiAuthSignInRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dishes': typeof DishesRoute
+  '/household': typeof HouseholdRoute
   '/week': typeof WeekRoute
+  '/join/$inviteId': typeof JoinInviteIdRoute
   '/api/auth/callback': typeof ApiAuthCallbackRoute
   '/api/auth/sign-in': typeof ApiAuthSignInRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dishes': typeof DishesRoute
+  '/household': typeof HouseholdRoute
   '/week': typeof WeekRoute
+  '/join/$inviteId': typeof JoinInviteIdRoute
   '/api/auth/callback': typeof ApiAuthCallbackRoute
   '/api/auth/sign-in': typeof ApiAuthSignInRoute
 }
@@ -59,21 +75,38 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/dishes': typeof DishesRoute
+  '/household': typeof HouseholdRoute
   '/week': typeof WeekRoute
+  '/join/$inviteId': typeof JoinInviteIdRoute
   '/api/auth/callback': typeof ApiAuthCallbackRoute
   '/api/auth/sign-in': typeof ApiAuthSignInRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/dishes' | '/week' | '/api/auth/callback' | '/api/auth/sign-in'
+    | '/'
+    | '/dishes'
+    | '/household'
+    | '/week'
+    | '/join/$inviteId'
+    | '/api/auth/callback'
+    | '/api/auth/sign-in'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dishes' | '/week' | '/api/auth/callback' | '/api/auth/sign-in'
+  to:
+    | '/'
+    | '/dishes'
+    | '/household'
+    | '/week'
+    | '/join/$inviteId'
+    | '/api/auth/callback'
+    | '/api/auth/sign-in'
   id:
     | '__root__'
     | '/'
     | '/dishes'
+    | '/household'
     | '/week'
+    | '/join/$inviteId'
     | '/api/auth/callback'
     | '/api/auth/sign-in'
   fileRoutesById: FileRoutesById
@@ -81,7 +114,9 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DishesRoute: typeof DishesRoute
+  HouseholdRoute: typeof HouseholdRoute
   WeekRoute: typeof WeekRoute
+  JoinInviteIdRoute: typeof JoinInviteIdRoute
   ApiAuthCallbackRoute: typeof ApiAuthCallbackRoute
   ApiAuthSignInRoute: typeof ApiAuthSignInRoute
 }
@@ -102,11 +137,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DishesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/household': {
+      id: '/household'
+      path: '/household'
+      fullPath: '/household'
+      preLoaderRoute: typeof HouseholdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/week': {
       id: '/week'
       path: '/week'
       fullPath: '/week'
       preLoaderRoute: typeof WeekRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/join/$inviteId': {
+      id: '/join/$inviteId'
+      path: '/join/$inviteId'
+      fullPath: '/join/$inviteId'
+      preLoaderRoute: typeof JoinInviteIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/auth/callback': {
@@ -129,7 +178,9 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DishesRoute: DishesRoute,
+  HouseholdRoute: HouseholdRoute,
   WeekRoute: WeekRoute,
+  JoinInviteIdRoute: JoinInviteIdRoute,
   ApiAuthCallbackRoute: ApiAuthCallbackRoute,
   ApiAuthSignInRoute: ApiAuthSignInRoute,
 }

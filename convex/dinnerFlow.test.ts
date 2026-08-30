@@ -122,4 +122,89 @@ describe('LoopDish dinner flow', () => {
 
     expect((await firstUser.query(api.dashboard.get, week)).plannedMeals).toHaveLength(1)
   })
+
+  it('shares dishes and plans with an invited household member', async () => {
+    const test = convexTest(schema, modules)
+    const owner = test.withIdentity({
+      subject: 'owner',
+      name: 'Alex Jensen',
+      email: 'alex@example.com',
+    })
+    const member = test.withIdentity({
+      subject: 'member',
+      name: 'Sam Jensen',
+      email: 'sam@example.com',
+    })
+
+    const dishId = await owner.mutation(api.dishes.add, { name: 'Tacos' })
+    await owner.mutation(api.mealPlans.plan, { dishId, date: '2026-08-29' })
+    await owner.mutation(api.households.rename, { name: 'The Jensen home' })
+    const inviteId = await owner.mutation(api.households.createInvite, {})
+
+    expect(await test.query(api.households.getInvite, { inviteId })).toEqual({
+      householdName: 'The Jensen home',
+      available: true,
+    })
+
+    await member.mutation(api.households.acceptInvite, { inviteId })
+
+    expect(await test.query(api.households.getInvite, { inviteId })).toEqual({
+      householdName: 'The Jensen home',
+      available: false,
+    })
+    expect((await member.query(api.dashboard.get, week)).plannedMeals[0]).toMatchObject({
+      date: '2026-08-29',
+      dishName: 'Tacos',
+    })
+
+    await member.mutation(api.dishes.add, { name: 'Soup' })
+    expect((await owner.query(api.dashboard.get, week)).dishes.map((dish) => dish.name)).toEqual([
+      'Soup',
+      'Tacos',
+    ])
+
+    const household = await owner.query(api.households.get, {})
+    expect(household.household?.name).toBe('The Jensen home')
+    expect(household.members).toMatchObject([
+      { name: 'Alex Jensen', role: 'owner', isCurrentUser: true },
+      { name: 'Sam Jensen', role: 'member', isCurrentUser: false },
+    ])
+
+    expect(household.canManageHousehold).toBe(true)
+    await expect(member.mutation(api.households.rename, { name: "Sam's home" })).rejects.toThrow(
+      'Only the household owner can do that',
+    )
+    await expect(member.mutation(api.households.createInvite, {})).rejects.toThrow(
+      'Only the household owner can do that',
+    )
+    expect((await member.query(api.households.get, {})).canManageHousehold).toBe(false)
+  })
+
+  it('consumes an invite opened by an existing household member', async () => {
+    const test = convexTest(schema, modules)
+    const owner = test.withIdentity({ subject: 'owner' })
+    const outsider = test.withIdentity({ subject: 'outsider' })
+    await owner.mutation(api.dishes.add, { name: 'Tacos' })
+    const inviteId = await owner.mutation(api.households.createInvite, {})
+
+    await owner.mutation(api.households.acceptInvite, { inviteId })
+
+    expect((await test.query(api.households.getInvite, { inviteId }))?.available).toBe(false)
+    await expect(outsider.mutation(api.households.acceptInvite, { inviteId })).rejects.toThrow(
+      'That invite is no longer available',
+    )
+  })
+
+  it('does not let an existing household join a second household', async () => {
+    const test = convexTest(schema, modules)
+    const firstOwner = test.withIdentity({ subject: 'first-owner' })
+    const secondOwner = test.withIdentity({ subject: 'second-owner' })
+    await firstOwner.mutation(api.dishes.add, { name: 'Tacos' })
+    await secondOwner.mutation(api.dishes.add, { name: 'Soup' })
+    const inviteId = await firstOwner.mutation(api.households.createInvite, {})
+
+    await expect(secondOwner.mutation(api.households.acceptInvite, { inviteId })).rejects.toThrow(
+      'You already belong to another household',
+    )
+  })
 })

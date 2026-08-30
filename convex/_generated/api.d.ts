@@ -11,6 +11,7 @@
 import type * as _lib_households from "../_lib/households.js";
 import type * as dashboard from "../dashboard.js";
 import type * as dishes from "../dishes.js";
+import type * as households from "../households.js";
 import type * as mealPlans from "../mealPlans.js";
 
 import type {
@@ -23,6 +24,7 @@ declare const fullApi: ApiFromModules<{
   "_lib/households": typeof _lib_households;
   dashboard: typeof dashboard;
   dishes: typeof dishes;
+  households: typeof households;
   mealPlans: typeof mealPlans;
 }>;
 
