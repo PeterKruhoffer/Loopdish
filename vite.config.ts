@@ -1,6 +1,7 @@
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import stylex from '@stylexjs/unplugin'
 import viteReact from '@vitejs/plugin-react'
+import { nitro } from 'nitro/vite'
 import { defineConfig } from 'vite-plus'
 
 export default defineConfig(({ mode }) => ({
@@ -22,6 +23,7 @@ export default defineConfig(({ mode }) => ({
             cssInjectionTarget: (fileName) => fileName.endsWith('global.css'),
           }),
           tanstackStart(),
+          nitro(),
           viteReact(),
         ],
   test: {
