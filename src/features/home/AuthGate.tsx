@@ -2,7 +2,7 @@ import * as stylex from '@stylexjs/stylex'
 import { useAuth } from '@workos/authkit-tanstack-react-start/client'
 import { Logo } from '~/components/ui/Logo'
 import { colors } from '../../components/ui/theme.stylex'
-import { ConnectedHome } from './ConnectedHome'
+import { ConnectedHome, type AppView } from './ConnectedHome'
 
 const display = 'Manrope, system-ui, sans-serif'
 const tablet = '@media (min-width: 720px)'
@@ -61,7 +61,7 @@ const styles = stylex.create({
   },
 })
 
-export function HomePage() {
+export function HomePage({ view }: { view: AppView }) {
   const { loading, user } = useAuth()
   if (loading) {
     return (
@@ -70,7 +70,7 @@ export function HomePage() {
       </main>
     )
   }
-  if (user) return <ConnectedHome />
+  if (user) return <ConnectedHome view={view} />
 
   return (
     <main {...stylex.props(styles.shell)}>
@@ -81,7 +81,10 @@ export function HomePage() {
         <p {...stylex.props(styles.copy)}>
           Sign in with Google to plan the week and keep your dinner history private.
         </p>
-        <a {...stylex.props(styles.button)} href="/api/auth/sign-in?returnPathname=/">
+        <a
+          {...stylex.props(styles.button)}
+          href={`/api/auth/sign-in?returnPathname=${view === 'today' ? '/' : `/${view}`}`}
+        >
           Continue with Google
         </a>
       </div>

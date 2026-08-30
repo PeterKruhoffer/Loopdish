@@ -1,4 +1,5 @@
 import * as stylex from '@stylexjs/stylex'
+import { Link, useRouterState } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 import { CalendarIcon, HeartIcon, HomeIcon, SunIcon } from '~/components/ui/Icon'
 import { Logo } from '~/components/ui/Logo'
@@ -102,6 +103,7 @@ const styles = stylex.create({
     fontWeight: 800,
     textDecoration: 'none',
   },
+  navItemActive: { color: colors.green },
 })
 
 export function AppHeader({
@@ -144,24 +146,28 @@ export function Hero({ name }: { name?: string | null }) {
   )
 }
 
-function NavItem({ href, children }: { href: string; children: ReactNode }) {
+function NavItem({ to, children }: { to: '/' | '/week' | '/dishes'; children: ReactNode }) {
+  const isActive = useRouterState({
+    select: (state) => state.location.pathname === to,
+  })
+
   return (
-    <a {...stylex.props(styles.navItem)} href={href}>
+    <Link {...stylex.props(styles.navItem, isActive && styles.navItemActive)} to={to}>
       {children}
-    </a>
+    </Link>
   )
 }
 
 export function BottomNav() {
   return (
     <nav {...stylex.props(styles.nav)} aria-label="Main navigation">
-      <NavItem href="#today">
+      <NavItem to="/">
         <HomeIcon /> <span>Today</span>
       </NavItem>
-      <NavItem href="#week">
+      <NavItem to="/week">
         <CalendarIcon /> <span>Week</span>
       </NavItem>
-      <NavItem href="#dishes">
+      <NavItem to="/dishes">
         <HeartIcon /> <span>Dishes</span>
       </NavItem>
     </nav>
