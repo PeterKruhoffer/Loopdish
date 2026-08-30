@@ -1,7 +1,7 @@
 import * as stylex from '@stylexjs/stylex'
 import { Link } from '@tanstack/react-router'
 import { useAuth } from '@workos/authkit-tanstack-react-start/client'
-import { useMemo } from 'react'
+import { useMemo, useState, type PointerEvent } from 'react'
 import { CalendarIcon, HeartIcon } from '~/components/ui/Icon'
 import { Dishes } from '~/features/dishes/Dishes'
 import { History } from '~/features/history/History'
@@ -11,6 +11,7 @@ import { makeWeek } from '~/lib/dates'
 import { useI18n } from '~/lib/i18n'
 import { colors } from '../../components/ui/theme.stylex'
 import { AppHeader, BottomNav, Hero } from './AppChrome'
+import { DashboardSkeleton, NavigationShimmer } from './LoadingState'
 import { useDinnerDashboard } from './useDinnerDashboard'
 
 const tablet = '@media (min-width: 720px)'
@@ -116,8 +117,13 @@ function StatusMessage({ message }: { message: string }) {
   )
 }
 
-function FirstRunGuide() {
+function FirstRunGuide({ onNavigate }: { onNavigate: (view: 'week' | 'dishes') => void }) {
   const { t } = useI18n()
+
+  function handlePointerDown(event: PointerEvent<HTMLAnchorElement>, view: 'week' | 'dishes') {
+    if (event.button === 0) onNavigate(view)
+  }
+
   return (
     <section {...stylex.props(styles.firstRun)} aria-labelledby="first-run-heading">
       <p {...stylex.props(styles.firstRunEyebrow)}>{t.firstRunEyebrow}</p>
@@ -126,7 +132,12 @@ function FirstRunGuide() {
       </h2>
       <p {...stylex.props(styles.firstRunCopy)}>{t.firstRunCopy}</p>
       <div {...stylex.props(styles.firstRunActions)}>
-        <Link {...stylex.props(styles.firstRunAction)} to="/dishes">
+        <Link
+          {...stylex.props(styles.firstRunAction)}
+          to="/dishes"
+          onPointerDown={(event) => handlePointerDown(event, 'dishes')}
+          onClick={() => onNavigate('dishes')}
+        >
           <span {...stylex.props(styles.firstRunIcon)}>
             <HeartIcon />
           </span>
@@ -135,7 +146,12 @@ function FirstRunGuide() {
             <span {...stylex.props(styles.firstRunActionCopy)}>{t.firstRunDishesCopy}</span>
           </span>
         </Link>
-        <Link {...stylex.props(styles.firstRunAction, styles.firstRunActionAlt)} to="/week">
+        <Link
+          {...stylex.props(styles.firstRunAction, styles.firstRunActionAlt)}
+          to="/week"
+          onPointerDown={(event) => handlePointerDown(event, 'week')}
+          onClick={() => onNavigate('week')}
+        >
           <span {...stylex.props(styles.firstRunIcon)}>
             <CalendarIcon />
           </span>
@@ -152,22 +168,31 @@ function FirstRunGuide() {
 export function ConnectedHome({ view }: { view: AppView }) {
   const { signOut, user } = useAuth()
   const { language } = useI18n()
+  const [pendingView, setPendingView] = useState<AppView | null>(null)
   const week = useMemo(() => makeWeek(language), [language])
   const dashboard = useDinnerDashboard(week)
   const data = dashboard.data
+  const visibleView = pendingView ?? view
+
+  function beginNavigation(nextView: AppView) {
+    if (nextView !== view) setPendingView(nextView)
+  }
 
   return (
     <div {...stylex.props(styles.shell)}>
+      <NavigationShimmer active={pendingView !== null} />
       <AppHeader name={user?.firstName} email={user?.email} onSignOut={() => void signOut()} />
       <main>
-        {view === 'today' && (
+        {visibleView === 'today' && (
           <>
             <Hero name={user?.firstName} />
-            <FirstRunGuide />
+            <FirstRunGuide onNavigate={beginNavigation} />
           </>
         )}
-        <StatusMessage message={dashboard.message} />
-        {view === 'week' && (
+        {!pendingView && <StatusMessage message={dashboard.message} />}
+        {visibleView !== 'today' && (pendingView || dashboard.isPending) ? (
+          <DashboardSkeleton view={visibleView} />
+        ) : visibleView === 'week' ? (
           <>
             <WeekPlanner
               week={week}
@@ -189,15 +214,14 @@ export function ConnectedHome({ view }: { view: AppView }) {
               onPlan={dashboard.planDinner}
             />
           </>
-        )}
-        {view === 'dishes' && (
+        ) : visibleView === 'dishes' ? (
           <>
             <Dishes dishes={data?.dishes ?? []} busy={dashboard.busy} onAdd={dashboard.addDish} />
             <History meals={data?.recentMeals ?? []} />
           </>
-        )}
+        ) : null}
       </main>
-      <BottomNav />
+      <BottomNav activeView={visibleView} onNavigate={beginNavigation} />
     </div>
   )
 }

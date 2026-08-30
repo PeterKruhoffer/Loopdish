@@ -1,6 +1,6 @@
 import * as stylex from '@stylexjs/stylex'
-import { Link, useRouterState } from '@tanstack/react-router'
-import type { ReactNode } from 'react'
+import { Link } from '@tanstack/react-router'
+import type { PointerEvent, ReactNode } from 'react'
 import { CalendarIcon, HeartIcon, HomeIcon, SunIcon } from '~/components/ui/Icon'
 import { LanguageSelect } from '~/components/ui/LanguageSelect'
 import { Logo } from '~/components/ui/Logo'
@@ -156,29 +156,54 @@ export function Hero({ name }: { name?: string | null }) {
   )
 }
 
-function NavItem({ to, children }: { to: '/' | '/week' | '/dishes'; children: ReactNode }) {
-  const isActive = useRouterState({
-    select: (state) => state.location.pathname === to,
-  })
+function NavItem({
+  to,
+  active,
+  onNavigate,
+  children,
+}: {
+  to: '/' | '/week' | '/dishes'
+  active: boolean
+  onNavigate: () => void
+  children: ReactNode
+}) {
+  function handlePointerDown(event: PointerEvent<HTMLAnchorElement>) {
+    if (event.button === 0) onNavigate()
+  }
 
   return (
-    <Link {...stylex.props(styles.navItem, isActive && styles.navItemActive)} to={to}>
+    <Link
+      {...stylex.props(styles.navItem, active && styles.navItemActive)}
+      to={to}
+      onPointerDown={handlePointerDown}
+      onClick={onNavigate}
+    >
       {children}
     </Link>
   )
 }
 
-export function BottomNav() {
+export function BottomNav({
+  activeView,
+  onNavigate,
+}: {
+  activeView: 'today' | 'week' | 'dishes'
+  onNavigate: (view: 'today' | 'week' | 'dishes') => void
+}) {
   const { t } = useI18n()
   return (
     <nav {...stylex.props(styles.nav)} aria-label={t.mainNavigation}>
-      <NavItem to="/">
+      <NavItem to="/" active={activeView === 'today'} onNavigate={() => onNavigate('today')}>
         <HomeIcon /> <span>{t.today}</span>
       </NavItem>
-      <NavItem to="/week">
+      <NavItem to="/week" active={activeView === 'week'} onNavigate={() => onNavigate('week')}>
         <CalendarIcon /> <span>{t.week}</span>
       </NavItem>
-      <NavItem to="/dishes">
+      <NavItem
+        to="/dishes"
+        active={activeView === 'dishes'}
+        onNavigate={() => onNavigate('dishes')}
+      >
         <HeartIcon /> <span>{t.dishes}</span>
       </NavItem>
     </nav>

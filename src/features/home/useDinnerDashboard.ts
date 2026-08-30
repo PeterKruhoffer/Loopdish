@@ -82,6 +82,7 @@ export function useDinnerDashboard(week: Day[]) {
 
   return {
     data,
+    isPending: dashboardQuery.isPending,
     busy,
     message,
     selectedDate,
