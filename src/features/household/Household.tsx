@@ -2,7 +2,8 @@ import { convexQuery } from '@convex-dev/react-query'
 import * as stylex from '@stylexjs/stylex'
 import { useQuery } from '@tanstack/react-query'
 import { useMutation } from 'convex/react'
-import { useState, type FormEvent } from 'react'
+import { startTransition, useActionState, useTransition } from 'react'
+import { useFormStatus } from 'react-dom'
 import { PlusIcon, UsersIcon } from '~/components/ui/Icon'
 import { useI18n } from '~/lib/i18n'
 import { api } from '../../../convex/_generated/api'
@@ -135,62 +136,65 @@ function messageFrom(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback
 }
 
-export function Household({ onSignOut }: { onSignOut: () => void }) {
+function SaveNameButton() {
+  const { pending } = useFormStatus()
+  const { t } = useI18n()
+  return (
+    <button {...stylex.props(styles.button)} disabled={pending} type="submit">
+      {t.saveName}
+    </button>
+  )
+}
+
+const initialInviteState = { url: '', message: '' }
+
+export function Household({ signOutAction }: { signOutAction: () => Promise<void> }) {
   const { t } = useI18n()
   const householdQuery = useQuery(convexQuery(api.households.get, {}))
   const renameHousehold = useMutation(api.households.rename)
   const createInvite = useMutation(api.households.createInvite)
-  const [inviteUrl, setInviteUrl] = useState('')
-  const [nameMessage, setNameMessage] = useState('')
-  const [inviteMessage, setInviteMessage] = useState('')
-  const [busy, setBusy] = useState(false)
-  const data = householdQuery.data
-  const canManageHousehold = data?.canManageHousehold === true
+  const [nameMessage, saveNameAction] = useActionState(
+    async (_previousMessage: string, formData: FormData) => {
+      const name = formData.get('name')
+      if (typeof name !== 'string') return t.somethingWentWrong
 
-  async function saveName(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const name = new FormData(event.currentTarget).get('name')
-    if (typeof name !== 'string') return
-    setBusy(true)
-    setNameMessage('')
-    try {
-      await renameHousehold({ name })
-      setNameMessage(t.householdSaved)
-    } catch (error) {
-      setNameMessage(messageFrom(error, t.somethingWentWrong))
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function makeInvite() {
-    setBusy(true)
-    setInviteMessage('')
+      try {
+        await renameHousehold({ name })
+        return t.householdSaved
+      } catch (error) {
+        return messageFrom(error, t.somethingWentWrong)
+      }
+    },
+    '',
+  )
+  const [inviteState, createInviteAction, isCreatingInvite] = useActionState(async () => {
     try {
       const inviteId = await createInvite({})
       const url = `${window.location.origin}/join/${inviteId}`
-      setInviteUrl(url)
       try {
         await navigator.clipboard.writeText(url)
-        setInviteMessage(t.linkCopied)
+        return { url, message: t.linkCopied }
       } catch {
-        setInviteMessage(t.inviteReady)
+        return { url, message: t.inviteReady }
       }
     } catch (error) {
-      setInviteMessage(messageFrom(error, t.somethingWentWrong))
-    } finally {
-      setBusy(false)
+      return { url: '', message: messageFrom(error, t.somethingWentWrong) }
     }
-  }
-
-  async function copyInvite() {
-    try {
-      await navigator.clipboard.writeText(inviteUrl)
-      setInviteMessage(t.linkCopied)
-    } catch {
-      setInviteMessage(t.inviteReady)
-    }
-  }
+  }, initialInviteState)
+  const [copyMessage, copyInviteAction, isCopyingInvite] = useActionState(
+    async (_previousMessage: string, inviteUrl: string) => {
+      try {
+        await navigator.clipboard.writeText(inviteUrl)
+        return t.linkCopied
+      } catch {
+        return t.inviteReady
+      }
+    },
+    '',
+  )
+  const [isSigningOut, startSignOutAction] = useTransition()
+  const data = householdQuery.data
+  const canManageHousehold = data?.canManageHousehold === true
 
   return (
     <>
@@ -203,7 +207,7 @@ export function Household({ onSignOut }: { onSignOut: () => void }) {
         <section {...stylex.props(styles.card)}>
           <h2 {...stylex.props(styles.sectionTitle)}>{t.people}</h2>
           {canManageHousehold ? (
-            <form onSubmit={(event) => void saveName(event)}>
+            <form action={saveNameAction}>
               <label {...stylex.props(styles.fieldLabel)} htmlFor="household-name">
                 {t.householdName}
               </label>
@@ -217,9 +221,7 @@ export function Household({ onSignOut }: { onSignOut: () => void }) {
                   placeholder={t.householdNamePlaceholder}
                   required
                 />
-                <button {...stylex.props(styles.button)} disabled={busy} type="submit">
-                  {t.saveName}
-                </button>
+                <SaveNameButton />
               </div>
               {nameMessage && (
                 <p {...stylex.props(styles.status)} aria-live="polite" role="status">
@@ -255,7 +257,8 @@ export function Household({ onSignOut }: { onSignOut: () => void }) {
           </div>
           <button
             {...stylex.props(styles.button, styles.dangerButton)}
-            onClick={onSignOut}
+            disabled={isSigningOut}
+            onClick={() => startSignOutAction(signOutAction)}
             type="button"
           >
             {t.signOut}
@@ -269,11 +272,11 @@ export function Household({ onSignOut }: { onSignOut: () => void }) {
             </span>
             <h2 {...stylex.props(styles.sectionTitle)}>{t.inviteSomeone}</h2>
             <p {...stylex.props(styles.copy)}>{t.inviteCopy}</p>
-            {!inviteUrl ? (
+            {!inviteState.url ? (
               <button
                 {...stylex.props(styles.button, styles.secondaryButton)}
-                disabled={busy}
-                onClick={() => void makeInvite()}
+                disabled={isCreatingInvite}
+                onClick={() => startTransition(createInviteAction)}
                 type="button"
               >
                 <PlusIcon /> {t.createInvite}
@@ -284,21 +287,22 @@ export function Household({ onSignOut }: { onSignOut: () => void }) {
                   {...stylex.props(styles.input, styles.inviteInput)}
                   aria-label={t.createInvite}
                   readOnly
-                  value={inviteUrl}
+                  value={inviteState.url}
                   onFocus={(event) => event.currentTarget.select()}
                 />
                 <button
                   {...stylex.props(styles.button)}
-                  onClick={() => void copyInvite()}
+                  disabled={isCopyingInvite}
+                  onClick={() => startTransition(() => copyInviteAction(inviteState.url))}
                   type="button"
                 >
                   {t.copyLink}
                 </button>
               </div>
             )}
-            {inviteMessage && (
+            {(copyMessage || inviteState.message) && (
               <p {...stylex.props(styles.status)} aria-live="polite" role="status">
-                {inviteMessage}
+                {copyMessage || inviteState.message}
               </p>
             )}
           </section>

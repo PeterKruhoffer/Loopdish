@@ -1,9 +1,10 @@
 import { convexQuery } from '@convex-dev/react-query'
 import * as stylex from '@stylexjs/stylex'
 import { useQuery } from '@tanstack/react-query'
+import { useNavigate } from '@tanstack/react-router'
 import { useAuth } from '@workos/authkit-tanstack-react-start/client'
 import { useMutation } from 'convex/react'
-import { useState } from 'react'
+import { startTransition, useActionState } from 'react'
 import { LanguageSelect } from '~/components/ui/LanguageSelect'
 import { Logo } from '~/components/ui/Logo'
 import { useI18n } from '~/lib/i18n'
@@ -65,23 +66,19 @@ const styles = stylex.create({
 export function JoinHousehold({ inviteId }: { inviteId: string }) {
   const { loading, user } = useAuth()
   const { t } = useI18n()
+  const navigate = useNavigate()
   const inviteQuery = useQuery(convexQuery(api.households.getInvite, { inviteId }))
   const acceptInvite = useMutation(api.households.acceptInvite)
-  const [joining, setJoining] = useState(false)
-  const [error, setError] = useState('')
-  const invite = inviteQuery.data
-
-  async function join() {
-    setJoining(true)
-    setError('')
+  const [error, joinAction, joining] = useActionState(async () => {
     try {
       await acceptInvite({ inviteId })
-      window.location.assign('/household')
+      await navigate({ to: '/household' })
+      return ''
     } catch (joinError) {
-      setError(joinError instanceof Error ? joinError.message : t.somethingWentWrong)
-      setJoining(false)
+      return joinError instanceof Error ? joinError.message : t.somethingWentWrong
     }
-  }
+  }, '')
+  const invite = inviteQuery.data
 
   let content
   if (inviteQuery.isPending || loading) {
@@ -103,7 +100,7 @@ export function JoinHousehold({ inviteId }: { inviteId: string }) {
           <button
             {...stylex.props(styles.button)}
             disabled={joining}
-            onClick={() => void join()}
+            onClick={() => startTransition(joinAction)}
             type="button"
           >
             {joining ? t.joiningHousehold : t.joinHousehold}

@@ -1,7 +1,15 @@
 import * as stylex from '@stylexjs/stylex'
+import { useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { useAuth } from '@workos/authkit-tanstack-react-start/client'
-import { useMemo, useState, useSyncExternalStore } from 'react'
+import {
+  useMemo,
+  useOptimistic,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  useTransition,
+} from 'react'
 import { CalendarIcon, HeartIcon, SparklesIcon } from '~/components/ui/Icon'
 import { Dishes } from '~/features/dishes/Dishes'
 import { History } from '~/features/history/History'
@@ -14,7 +22,7 @@ import { useI18n } from '~/lib/i18n'
 import { colors } from '../../components/ui/theme.stylex'
 import { AppHeader, BottomNav, Hero } from './AppChrome'
 import { DashboardError, DashboardSkeleton } from './LoadingState'
-import { useDinnerDashboard } from './useDinnerDashboard'
+import { dinnerDashboardQueryOptions, useDinnerDashboard } from './useDinnerDashboard'
 
 const tablet = '@media (min-width: 720px)'
 const display = 'Manrope, system-ui, sans-serif'
@@ -27,14 +35,6 @@ const styles = stylex.create({
     margin: '0 auto',
     paddingBottom: 116,
     [tablet]: { width: 'min(100% - 64px, 1080px)', paddingBottom: 80 },
-  },
-  status: {
-    margin: '-16px 0 26px',
-    padding: '11px 14px',
-    borderRadius: 12,
-    color: '#633a2e',
-    backgroundColor: '#f8d9ce',
-    fontSize: 13,
   },
   firstRun: {
     marginTop: 10,
@@ -109,15 +109,6 @@ const styles = stylex.create({
     lineHeight: 1.4,
   },
 })
-
-function StatusMessage({ message }: { message: string }) {
-  if (!message) return null
-  return (
-    <p {...stylex.props(styles.status)} role="status" aria-live="polite">
-      {message}
-    </p>
-  )
-}
 
 function FirstRunGuide() {
   const { t } = useI18n()
@@ -202,8 +193,12 @@ function useLocalDay() {
 
 export function ConnectedHome({ view }: { view: AppView }) {
   const { signOut, user } = useAuth()
-  const { language } = useI18n()
+  const { language, t } = useI18n()
+  const queryClient = useQueryClient()
   const [weekOffset, setWeekOffset] = useState(0)
+  const [selectedWeekOffset, setOptimisticWeekOffset] = useOptimistic(weekOffset)
+  const [isWeekPending, startWeekAction] = useTransition()
+  const weekRequest = useRef(0)
   const localDay = useLocalDay()
   const week = useMemo(
     () => makeWeek(language, weekOffset, new Date(`${localDay}T12:00:00`)),
@@ -216,6 +211,23 @@ export function ConnectedHome({ view }: { view: AppView }) {
   const dashboard = useDinnerDashboard(week)
   const data = dashboard.data
 
+  function selectWeekAction(nextWeekOffset: number) {
+    if (nextWeekOffset === selectedWeekOffset) return
+    const request = ++weekRequest.current
+
+    startWeekAction(async () => {
+      setOptimisticWeekOffset(nextWeekOffset)
+      const nextWeek = makeWeek(language, nextWeekOffset, new Date(`${localDay}T12:00:00`))
+      try {
+        await queryClient.ensureQueryData(dinnerDashboardQueryOptions(nextWeek))
+      } catch {
+        // Commit the selection so the existing inline query error can handle a failed preload.
+      }
+      if (request !== weekRequest.current) return
+      startWeekAction(() => setWeekOffset(nextWeekOffset))
+    })
+  }
+
   return (
     <div {...stylex.props(styles.shell)}>
       <AppHeader name={user?.firstName} email={user?.email} householdName={data?.household?.name} />
@@ -226,21 +238,21 @@ export function ConnectedHome({ view }: { view: AppView }) {
             <FirstRunGuide />
           </>
         )}
-        {view !== 'dishes' && <StatusMessage message={dashboard.message} />}
         {view === 'week' ? (
           <>
             <WeekPlanner
               week={week}
               weekOffset={weekOffset}
+              selectedWeekOffset={selectedWeekOffset}
               plans={data?.plannedMeals ?? []}
               selectedDate={dashboard.selectedDate}
-              busy={dashboard.busy}
+              isWeekPending={isWeekPending}
               isPending={dashboard.isPending}
               queryError={dashboard.queryError}
-              onSelectWeek={setWeekOffset}
+              selectWeekAction={selectWeekAction}
               onSelectDate={dashboard.setSelectedDate}
-              onMarkEaten={dashboard.markEaten}
-              onRemove={dashboard.removePlan}
+              markEatenAction={dashboard.markEatenAction}
+              removePlanAction={dashboard.removePlanAction}
               onRetry={dashboard.retryDashboard}
             />
             {!dashboard.isPending && !dashboard.queryError && (
@@ -249,10 +261,9 @@ export function ConnectedHome({ view }: { view: AppView }) {
                 week={week}
                 selectedDishId={dashboard.selectedDishId}
                 selectedDate={dashboard.selectedDate}
-                busy={dashboard.busy}
                 onSelectDish={dashboard.setSelectedDishId}
                 onSelectDate={dashboard.setSelectedDate}
-                onPlan={dashboard.planDinner}
+                planDinnerAction={dashboard.planDinnerAction}
               />
             )}
           </>
@@ -260,22 +271,21 @@ export function ConnectedHome({ view }: { view: AppView }) {
           dashboard.isPending ? (
             <DashboardSkeleton view="dishes" />
           ) : dashboard.queryError ? (
-            <DashboardError message={dashboard.queryError} onRetry={dashboard.retryDashboard} />
+            <DashboardError message={t.dashboardLoadError} onRetry={dashboard.retryDashboard} />
           ) : (
             <>
-              <Dishes
-                dishes={data?.dishes ?? []}
-                busy={dashboard.busy}
-                statusMessage={dashboard.message}
-                onAdd={dashboard.addDish}
-              />
+              <Dishes dishes={data?.dishes ?? []} addDishAction={dashboard.addDishAction} />
               <History meals={data?.recentMeals ?? []} />
             </>
           )
         ) : view === 'household' ? (
-          <Household onSignOut={() => void signOut()} />
+          <Household
+            signOutAction={async () => {
+              await signOut()
+            }}
+          />
         ) : view === 'suggestions' ? (
-          <Suggestions week={suggestionWeek} busy={dashboard.busy} onAddDish={dashboard.addDish} />
+          <Suggestions week={suggestionWeek} addDishAction={dashboard.addDishAction} />
         ) : null}
       </main>
       <BottomNav activeView={view} />

@@ -1,6 +1,6 @@
 import * as stylex from '@stylexjs/stylex'
 import { useAction, useMutation } from 'convex/react'
-import { useState } from 'react'
+import { startTransition, useActionState, useOptimistic } from 'react'
 import { api } from '../../../convex/_generated/api'
 import { CheckIcon, PlusIcon, SparklesIcon } from '~/components/ui/Icon'
 import { SectionHeading } from '~/components/ui/SectionHeading'
@@ -10,6 +10,21 @@ import { colors } from '../../components/ui/theme.stylex'
 
 type DishSuggestion = { name: string; notes: string; reason: string }
 type MealSuggestion = DishSuggestion & { date: string }
+type SuggestionKind = 'new_dishes' | 'weekly_plan'
+
+type SuggestionState = {
+  dishes: DishSuggestion[]
+  meals: MealSuggestion[]
+  message: string
+}
+
+type SavedDishState = {
+  names: Set<string>
+  message: string
+}
+
+const initialSuggestions: SuggestionState = { dishes: [], meals: [], message: '' }
+const initialSavedDishes: SavedDishState = { names: new Set(), message: '' }
 
 const tablet = '@media (min-width: 720px)'
 const motion = '@media (prefers-reduced-motion: no-preference)'
@@ -131,70 +146,75 @@ function errorMessage(error: unknown, fallback: string) {
 
 export function Suggestions({
   week,
-  busy,
-  onAddDish,
+  addDishAction,
 }: {
   week: Day[]
-  busy: boolean
-  onAddDish: (name: string, notes?: string) => Promise<boolean>
+  addDishAction: (name: string, notes?: string) => Promise<void>
 }) {
   const { language, t } = useI18n()
   const generate = useAction(api.suggestions.generate)
   const applyPlan = useMutation(api.mealPlans.applySuggestion)
-  const [generating, setGenerating] = useState<'new_dishes' | 'weekly_plan' | null>(null)
-  const [applying, setApplying] = useState(false)
-  const [dishes, setDishes] = useState<DishSuggestion[]>([])
-  const [meals, setMeals] = useState<MealSuggestion[]>([])
-  const [saved, setSaved] = useState<Set<string>>(new Set())
-  const [message, setMessage] = useState('')
-
-  async function request(kind: 'new_dishes' | 'weekly_plan') {
-    setGenerating(kind)
-    setMessage('')
-    try {
-      const result = await generate({
-        kind,
-        startDate: week[0].date,
-        endDate: week[6].date,
-        language,
-      })
-      if (result.kind === 'new_dishes') {
-        setDishes(result.dishes)
-        setMeals([])
-        setSaved(new Set())
-      } else {
-        setMeals(result.meals)
-        setDishes([])
+  const [suggestions, generateAction, isGenerating] = useActionState(
+    async (current: SuggestionState, kind: SuggestionKind): Promise<SuggestionState> => {
+      try {
+        const result = await generate({
+          kind,
+          startDate: week[0].date,
+          endDate: week[6].date,
+          language,
+        })
+        return result.kind === 'new_dishes'
+          ? { dishes: result.dishes, meals: [], message: '' }
+          : { dishes: [], meals: result.meals, message: '' }
+      } catch (error) {
+        return { ...current, message: errorMessage(error, t.suggestionsError) }
       }
-    } catch (error) {
-      setMessage(errorMessage(error, t.suggestionsError))
-    } finally {
-      setGenerating(null)
-    }
+    },
+    initialSuggestions,
+  )
+  const [generatingKind, setOptimisticGeneratingKind] = useOptimistic<SuggestionKind | null>(null)
+  const [savedDishes, saveDishAction, isSavingDish] = useActionState(
+    async (current: SavedDishState, dish: DishSuggestion): Promise<SavedDishState> => {
+      try {
+        await addDishAction(dish.name, dish.notes)
+        return { names: new Set(current.names).add(dish.name), message: '' }
+      } catch (error) {
+        return { ...current, message: errorMessage(error, t.suggestionsError) }
+      }
+    },
+    initialSavedDishes,
+  )
+  const [optimisticSavedNames, setOptimisticSavedName] = useOptimistic(
+    savedDishes.names,
+    (currentNames, name: string) => new Set(currentNames).add(name),
+  )
+  const [planMessage, applyPlanAction, isApplyingPlan] = useActionState(
+    async (_current: string, meals: MealSuggestion[]) => {
+      try {
+        const result = await applyPlan({
+          meals: meals.map(({ date, name, notes }) => ({ date, name, notes })),
+        })
+        return result.preservedDates.length > 0 ? t.planAppliedWithCompleted : t.planApplied
+      } catch (error) {
+        return errorMessage(error, t.suggestionsError)
+      }
+    },
+    '',
+  )
+
+  function requestSuggestions(kind: SuggestionKind) {
+    startTransition(() => {
+      setOptimisticGeneratingKind(kind)
+      generateAction(kind)
+    })
   }
 
-  async function saveDish(dish: DishSuggestion) {
-    if (await onAddDish(dish.name, dish.notes)) {
-      setSaved((current) => new Set(current).add(dish.name))
-    }
+  function saveSuggestedDish(dish: DishSuggestion) {
+    startTransition(() => {
+      setOptimisticSavedName(dish.name)
+      saveDishAction(dish)
+    })
   }
-
-  async function confirmPlan() {
-    setApplying(true)
-    setMessage('')
-    try {
-      const result = await applyPlan({
-        meals: meals.map(({ date, name, notes }) => ({ date, name, notes })),
-      })
-      setMessage(result.preservedDates.length > 0 ? t.planAppliedWithCompleted : t.planApplied)
-    } catch (error) {
-      setMessage(errorMessage(error, t.suggestionsError))
-    } finally {
-      setApplying(false)
-    }
-  }
-
-  const disabled = busy || Boolean(generating) || applying
 
   return (
     <section {...stylex.props(styles.section)} aria-labelledby="suggestions-heading">
@@ -208,51 +228,51 @@ export function Suggestions({
       <div {...stylex.props(styles.choices)}>
         <button
           {...stylex.props(styles.choice)}
-          disabled={disabled}
-          onClick={() => void request('new_dishes')}
+          disabled={isGenerating || isApplyingPlan}
+          onClick={() => requestSuggestions('new_dishes')}
         >
           <span {...stylex.props(styles.choiceIcon)}>
             <SparklesIcon />
           </span>
           <span>
             <strong {...stylex.props(styles.choiceTitle)}>
-              {generating === 'new_dishes' ? t.thinking : t.suggestNewDishes}
+              {generatingKind === 'new_dishes' ? t.thinking : t.suggestNewDishes}
             </strong>
             <span {...stylex.props(styles.choiceCopy)}>{t.suggestNewDishesCopy}</span>
           </span>
         </button>
         <button
           {...stylex.props(styles.choice, styles.choiceAlt)}
-          disabled={disabled}
-          onClick={() => void request('weekly_plan')}
+          disabled={isGenerating || isApplyingPlan}
+          onClick={() => requestSuggestions('weekly_plan')}
         >
           <span {...stylex.props(styles.choiceIcon)}>
             <SparklesIcon />
           </span>
           <span>
             <strong {...stylex.props(styles.choiceTitle)}>
-              {generating === 'weekly_plan' ? t.thinking : t.planNextWeek}
+              {generatingKind === 'weekly_plan' ? t.thinking : t.planNextWeek}
             </strong>
             <span {...stylex.props(styles.choiceCopy)}>{t.planNextWeekCopy}</span>
           </span>
         </button>
       </div>
 
-      {message && (
+      {suggestions.message && (
         <p {...stylex.props(styles.status)} role="status" aria-live="polite">
-          {message}
+          {suggestions.message}
         </p>
       )}
 
-      {dishes.length > 0 && (
+      {suggestions.dishes.length > 0 && (
         <div {...stylex.props(styles.results)}>
           <div {...stylex.props(styles.resultHeader)}>
             <h2 {...stylex.props(styles.resultTitle)}>{t.dishesToTry}</h2>
             <span {...stylex.props(styles.resultMeta)}>{t.addTheOnesYouLike}</span>
           </div>
           <ul {...stylex.props(styles.list)}>
-            {dishes.map((dish) => {
-              const isSaved = saved.has(dish.name)
+            {suggestions.dishes.map((dish) => {
+              const isSaved = optimisticSavedNames.has(dish.name)
               return (
                 <li {...stylex.props(styles.item)} key={dish.name}>
                   <div>
@@ -262,8 +282,8 @@ export function Suggestions({
                   </div>
                   <button
                     {...stylex.props(styles.addButton, isSaved && styles.saved)}
-                    disabled={disabled || isSaved}
-                    onClick={() => void saveDish(dish)}
+                    disabled={isSavingDish || isSaved}
+                    onClick={() => saveSuggestedDish(dish)}
                   >
                     {isSaved ? (
                       <>
@@ -279,10 +299,15 @@ export function Suggestions({
               )
             })}
           </ul>
+          {savedDishes.message && (
+            <p {...stylex.props(styles.status)} role="status" aria-live="polite">
+              {savedDishes.message}
+            </p>
+          )}
         </div>
       )}
 
-      {meals.length > 0 && (
+      {suggestions.meals.length > 0 && (
         <div {...stylex.props(styles.results)}>
           <div {...stylex.props(styles.resultHeader)}>
             <h2 {...stylex.props(styles.resultTitle)}>{t.nextWeeksPlan}</h2>
@@ -291,7 +316,7 @@ export function Suggestions({
             </span>
           </div>
           <ul {...stylex.props(styles.list)}>
-            {meals.map((meal) => (
+            {suggestions.meals.map((meal) => (
               <li {...stylex.props(styles.item)} key={meal.date}>
                 <div>
                   <p {...stylex.props(styles.day)}>
@@ -306,12 +331,17 @@ export function Suggestions({
           </ul>
           <button
             {...stylex.props(styles.confirm)}
-            disabled={disabled}
-            onClick={() => void confirmPlan()}
+            disabled={isGenerating || isApplyingPlan}
+            onClick={() => startTransition(() => applyPlanAction(suggestions.meals))}
           >
-            {applying ? t.savingPlan : t.useThisPlan}
+            {isApplyingPlan ? t.savingPlan : t.useThisPlan}
           </button>
           <p {...stylex.props(styles.disclosure)}>{t.planDisclosure}</p>
+          {planMessage && (
+            <p {...stylex.props(styles.status)} role="status" aria-live="polite">
+              {planMessage}
+            </p>
+          )}
         </div>
       )}
     </section>

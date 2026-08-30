@@ -1,7 +1,9 @@
 import * as stylex from '@stylexjs/stylex'
+import { useActionState } from 'react'
+import { useFormStatus } from 'react-dom'
 import { PlusIcon } from '~/components/ui/Icon'
 import type { Dish } from '~/features/home/types'
-import type { Day } from '~/lib/dates'
+import { friendlyDate, type Day } from '~/lib/dates'
 import { useI18n } from '~/lib/i18n'
 import { colors } from '../../components/ui/theme.stylex'
 
@@ -75,6 +77,13 @@ const styles = stylex.create({
     ':hover': { backgroundColor: '#f7ae9d' },
     ':active': { transform: 'translateY(1px)' },
   },
+  status: {
+    gridColumn: '1 / -1',
+    margin: 0,
+    color: colors.coralSoft,
+    fontSize: 12,
+    fontWeight: 700,
+  },
   empty: { maxWidth: 440, marginTop: 16, color: colors.muted, fontSize: 13, lineHeight: 1.55 },
 })
 
@@ -83,10 +92,23 @@ type PlanDinnerFormProps = {
   week: Day[]
   selectedDishId: string
   selectedDate: string
-  busy: boolean
   onSelectDish: (dishId: string) => void
   onSelectDate: (date: string) => void
-  onPlan: () => void
+  planDinnerAction: (dishId: string, date: string) => Promise<void>
+}
+
+function messageFrom(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback
+}
+
+function AddToWeekButton() {
+  const { pending } = useFormStatus()
+  const { t } = useI18n()
+  return (
+    <button {...stylex.props(styles.button)} disabled={pending} type="submit">
+      {t.addToWeek}
+    </button>
+  )
 }
 
 function PlanDinnerForm({
@@ -94,28 +116,38 @@ function PlanDinnerForm({
   week,
   selectedDishId,
   selectedDate,
-  busy,
   onSelectDish,
   onSelectDate,
-  onPlan,
+  planDinnerAction,
 }: PlanDinnerFormProps) {
-  const { t } = useI18n()
+  const { language, t } = useI18n()
+  const [message, submitAction] = useActionState(
+    async (_previousMessage: string, formData: FormData) => {
+      const dishId = formData.get('dishId')
+      const date = formData.get('date')
+      if (typeof dishId !== 'string' || typeof date !== 'string') return t.somethingWentWrong
+
+      try {
+        await planDinnerAction(dishId, date)
+        return `${t.dinnerPlanned} ${friendlyDate(date, language)}.`
+      } catch (error) {
+        return messageFrom(error, t.somethingWentWrong)
+      }
+    },
+    '',
+  )
+
   if (dishes.length === 0) {
     return <p {...stylex.props(styles.empty)}>{t.addFirstDish}</p>
   }
 
   return (
-    <form
-      {...stylex.props(styles.form)}
-      onSubmit={(event) => {
-        event.preventDefault()
-        onPlan()
-      }}
-    >
+    <form {...stylex.props(styles.form)} action={submitAction}>
       <label {...stylex.props(styles.label)}>
         {t.dish}
         <select
           {...stylex.props(styles.select)}
+          name="dishId"
           value={selectedDishId}
           onChange={(event) => onSelectDish(event.target.value)}
         >
@@ -130,6 +162,7 @@ function PlanDinnerForm({
         {t.day}
         <select
           {...stylex.props(styles.select)}
+          name="date"
           value={selectedDate}
           onChange={(event) => onSelectDate(event.target.value)}
         >
@@ -140,9 +173,12 @@ function PlanDinnerForm({
           ))}
         </select>
       </label>
-      <button {...stylex.props(styles.button)} disabled={busy}>
-        {t.addToWeek}
-      </button>
+      <AddToWeekButton />
+      {message && (
+        <p {...stylex.props(styles.status)} aria-live="polite" role="status">
+          {message}
+        </p>
+      )}
     </form>
   )
 }
@@ -152,19 +188,17 @@ export function PlanDinner({
   week,
   selectedDishId,
   selectedDate,
-  busy,
   onSelectDish,
   onSelectDate,
-  onPlan,
+  planDinnerAction,
 }: {
   dishes: Dish[]
   week: Day[]
   selectedDishId: string
   selectedDate: string
-  busy: boolean
   onSelectDish: (dishId: string) => void
   onSelectDate: (date: string) => void
-  onPlan: () => void
+  planDinnerAction: (dishId: string, date: string) => Promise<void>
 }) {
   const { t } = useI18n()
   return (
@@ -185,10 +219,9 @@ export function PlanDinner({
         week={week}
         selectedDishId={selectedDishId}
         selectedDate={selectedDate}
-        busy={busy}
         onSelectDish={onSelectDish}
         onSelectDate={onSelectDate}
-        onPlan={onPlan}
+        planDinnerAction={planDinnerAction}
       />
     </section>
   )

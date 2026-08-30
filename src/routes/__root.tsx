@@ -1,8 +1,8 @@
 import type { ConvexQueryClient } from '@convex-dev/react-query'
 import type { QueryClient } from '@tanstack/react-query'
 import { HeadContent, Outlet, Scripts, createRootRouteWithContext } from '@tanstack/react-router'
-import { getAuth } from '@workos/authkit-tanstack-react-start'
 import { useEffect, type ReactNode } from 'react'
+import { NavigationIndicator } from '~/features/home/LoadingState'
 import { useI18n } from '~/lib/i18n'
 import '~/styles/global.css'
 
@@ -30,13 +30,6 @@ export const Route = createRootRouteWithContext<{
       { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
     ],
   }),
-  beforeLoad: async ({ context }) => {
-    const auth = await getAuth()
-    if (auth.user) {
-      context.convexQueryClient?.serverHttpClient?.setAuth(auth.accessToken)
-    }
-    return { user: auth.user }
-  },
   component: RootComponent,
 })
 
@@ -63,6 +56,7 @@ function RootDocument({ children }: { children: ReactNode }) {
       </head>
       <body>
         <DevelopmentStyles />
+        <NavigationIndicator />
         {children}
         <Scripts />
       </body>

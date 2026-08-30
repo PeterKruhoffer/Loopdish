@@ -9,6 +9,7 @@ import {
 } from '@workos/authkit-tanstack-react-start/client'
 import { ConvexProviderWithAuth, ConvexReactClient } from 'convex/react'
 import { useCallback, useMemo, type ReactNode } from 'react'
+import { RoutePending } from './features/home/LoadingState'
 import { LanguageProvider, useI18n } from './lib/i18n'
 import { routeTree } from './routeTree.gen'
 
@@ -40,6 +41,9 @@ export function getRouter() {
     createRouter({
       routeTree,
       defaultPreload: 'intent',
+      defaultPendingComponent: RoutePending,
+      defaultPendingMs: 120,
+      defaultPendingMinMs: 250,
       context: { queryClient, convexQueryClient },
       scrollRestoration: true,
       defaultNotFoundComponent: NotFound,

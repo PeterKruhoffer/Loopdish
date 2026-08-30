@@ -1,4 +1,5 @@
 import * as stylex from '@stylexjs/stylex'
+import { useState, useTransition } from 'react'
 import { CheckIcon, NoodleBowlIcon, PlusIcon } from '~/components/ui/Icon'
 import { SectionHeading } from '~/components/ui/SectionHeading'
 import { DashboardError, DashboardSkeleton } from '~/features/home/LoadingState'
@@ -36,6 +37,12 @@ const styles = stylex.create({
   weekSwitchButtonActive: {
     color: '#fff',
     backgroundColor: colors.green,
+  },
+  actionStatus: {
+    margin: '-7px 0 14px',
+    color: '#633a2e',
+    fontSize: 12,
+    fontWeight: 700,
   },
   days: {
     display: 'grid',
@@ -213,15 +220,15 @@ function TodayLabel({ isToday }: { isToday: boolean }) {
 function DinnerActions({
   plan,
   day,
-  busy,
-  onMarkEaten,
-  onRemove,
+  isActionPending,
+  markEatenAction,
+  removePlanAction,
 }: {
   plan: PlannedMeal
   day: Day
-  busy: boolean
-  onMarkEaten: (plan: PlannedMeal) => void
-  onRemove: (plan: PlannedMeal) => void
+  isActionPending: boolean
+  markEatenAction: (plan: PlannedMeal) => void
+  removePlanAction: (plan: PlannedMeal) => void
 }) {
   const { t } = useI18n()
   if (plan.completedAt) {
@@ -234,14 +241,20 @@ function DinnerActions({
 
   return (
     <div {...stylex.props(styles.actions)}>
-      <button {...stylex.props(styles.ateButton)} disabled={busy} onClick={() => onMarkEaten(plan)}>
+      <button
+        {...stylex.props(styles.ateButton)}
+        disabled={isActionPending}
+        onClick={() => markEatenAction(plan)}
+        type="button"
+      >
         <CheckIcon /> {t.weAteThis}
       </button>
       <button
         {...stylex.props(styles.removeButton)}
         aria-label={`${t.remove} ${plan.dishName}, ${day.weekday}`}
-        disabled={busy}
-        onClick={() => onRemove(plan)}
+        disabled={isActionPending}
+        onClick={() => removePlanAction(plan)}
+        type="button"
       >
         {t.remove}
       </button>
@@ -282,15 +295,15 @@ function DinnerTopline({ day }: { day: Day }) {
 function DinnerCard({
   day,
   plan,
-  busy,
-  onMarkEaten,
-  onRemove,
+  isActionPending,
+  markEatenAction,
+  removePlanAction,
 }: {
   day: Day
   plan?: PlannedMeal
-  busy: boolean
-  onMarkEaten: (plan: PlannedMeal) => void
-  onRemove: (plan: PlannedMeal) => void
+  isActionPending: boolean
+  markEatenAction: (plan: PlannedMeal) => void
+  removePlanAction: (plan: PlannedMeal) => void
 }) {
   if (!plan) return <EmptyDinner day={day} />
 
@@ -304,9 +317,9 @@ function DinnerCard({
       <DinnerActions
         plan={plan}
         day={day}
-        busy={busy}
-        onMarkEaten={onMarkEaten}
-        onRemove={onRemove}
+        isActionPending={isActionPending}
+        markEatenAction={markEatenAction}
+        removePlanAction={removePlanAction}
       />
     </article>
   )
@@ -315,36 +328,58 @@ function DinnerCard({
 export function WeekPlanner({
   week,
   weekOffset,
+  selectedWeekOffset,
   plans,
   selectedDate,
-  busy,
+  isWeekPending,
   isPending,
   queryError,
-  onSelectWeek,
+  selectWeekAction,
   onSelectDate,
-  onMarkEaten,
-  onRemove,
+  markEatenAction,
+  removePlanAction,
   onRetry,
 }: {
   week: Day[]
   weekOffset: number
+  selectedWeekOffset: number
   plans: PlannedMeal[]
   selectedDate: string
-  busy: boolean
+  isWeekPending: boolean
   isPending: boolean
-  queryError: string
-  onSelectWeek: (weekOffset: number) => void
+  queryError: boolean
+  selectWeekAction: (weekOffset: number) => void
   onSelectDate: (date: string) => void
-  onMarkEaten: (plan: PlannedMeal) => void
-  onRemove: (plan: PlannedMeal) => void
-  onRetry: () => void
+  markEatenAction: (plan: PlannedMeal) => Promise<void>
+  removePlanAction: (plan: PlannedMeal) => Promise<void>
+  onRetry: () => Promise<unknown>
 }) {
   const { t } = useI18n()
+  const [actionMessage, setActionMessage] = useState('')
+  const [isMealActionPending, startMealAction] = useTransition()
   const selectedDay = week.find((day) => day.date === selectedDate) ?? week[0]
   const selectedPlan = plans.find((meal) => meal.date === selectedDate)
 
+  function runMealAction(action: () => Promise<void>, successMessage: string) {
+    setActionMessage('')
+    startMealAction(async () => {
+      try {
+        await action()
+        startMealAction(() => setActionMessage(successMessage))
+      } catch (error) {
+        const message = error instanceof Error ? error.message : t.somethingWentWrong
+        startMealAction(() => setActionMessage(message))
+      }
+    })
+  }
+
   return (
-    <section {...stylex.props(styles.section)} aria-labelledby="week-heading" id="week">
+    <section
+      {...stylex.props(styles.section)}
+      aria-busy={isWeekPending}
+      aria-labelledby="week-heading"
+      id="week"
+    >
       <SectionHeading
         id="week-heading"
         title={weekOffset === 0 ? t.thisWeek : t.nextWeek}
@@ -353,14 +388,14 @@ export function WeekPlanner({
 
       <div {...stylex.props(styles.weekSwitch)} aria-label={t.chooseWeek} role="group">
         {[0, 1].map((offset) => {
-          const isActive = offset === weekOffset
+          const isActive = offset === selectedWeekOffset
           return (
             <button
               {...stylex.props(styles.weekSwitchButton, isActive && styles.weekSwitchButtonActive)}
               type="button"
               key={offset}
               aria-pressed={isActive}
-              onClick={() => onSelectWeek(offset)}
+              onClick={() => selectWeekAction(offset)}
             >
               {offset === 0 ? t.thisWeek : t.nextWeek}
             </button>
@@ -368,10 +403,16 @@ export function WeekPlanner({
         })}
       </div>
 
+      {actionMessage && (
+        <p {...stylex.props(styles.actionStatus)} aria-live="polite" role="status">
+          {actionMessage}
+        </p>
+      )}
+
       {isPending ? (
         <DashboardSkeleton view="week" />
       ) : queryError ? (
-        <DashboardError message={queryError} onRetry={onRetry} />
+        <DashboardError message={t.dashboardLoadError} onRetry={onRetry} />
       ) : (
         <>
           <div {...stylex.props(styles.days)}>
@@ -382,6 +423,7 @@ export function WeekPlanner({
                   {...stylex.props(styles.day, isSelected && styles.dayActive)}
                   key={day.date}
                   onClick={() => onSelectDate(day.date)}
+                  type="button"
                   aria-pressed={isSelected}
                   aria-label={`${day.weekday}, ${day.month} ${day.dayNumber}`}
                 >
@@ -398,9 +440,9 @@ export function WeekPlanner({
           <DinnerCard
             day={selectedDay}
             plan={selectedPlan}
-            busy={busy}
-            onMarkEaten={onMarkEaten}
-            onRemove={onRemove}
+            isActionPending={isMealActionPending}
+            markEatenAction={(plan) => runMealAction(() => markEatenAction(plan), t.historyAdded)}
+            removePlanAction={(plan) => runMealAction(() => removePlanAction(plan), t.planRemoved)}
           />
         </>
       )}

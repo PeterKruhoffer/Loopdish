@@ -1,5 +1,6 @@
 import * as stylex from '@stylexjs/stylex'
-import { useMemo, useState, type FormEvent } from 'react'
+import { useActionState, useDeferredValue, useMemo, useState } from 'react'
+import { useFormStatus } from 'react-dom'
 import { PlateIcon, PlusIcon, SearchIcon } from '~/components/ui/Icon'
 import { SectionHeading } from '~/components/ui/SectionHeading'
 import type { Dish } from '~/features/home/types'
@@ -254,22 +255,52 @@ function FormStatus({ message }: { message: string }) {
   )
 }
 
+function SaveDishButton() {
+  const { pending } = useFormStatus()
+  const { t } = useI18n()
+  return (
+    <button {...stylex.props(styles.button)} disabled={pending} type="submit">
+      {t.saveDish}
+    </button>
+  )
+}
+
+function messageFrom(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback
+}
+
 export function Dishes({
   dishes,
-  busy,
-  statusMessage,
-  onAdd,
+  addDishAction,
 }: {
   dishes: Dish[]
-  busy: boolean
-  statusMessage: string
-  onAdd: (name: string, notes?: string) => Promise<boolean>
+  addDishAction: (name: string, notes?: string) => Promise<void>
 }) {
   const { t } = useI18n()
   const [name, setName] = useState('')
   const [notes, setNotes] = useState('')
   const [search, setSearch] = useState('')
-  const query = search.trim().toLocaleLowerCase()
+  const deferredSearch = useDeferredValue(search)
+  const query = deferredSearch.trim().toLocaleLowerCase()
+  const [statusMessage, submitAction] = useActionState(
+    async (_previousMessage: string, formData: FormData) => {
+      const submittedName = formData.get('name')
+      const submittedNotes = formData.get('notes')
+      if (typeof submittedName !== 'string' || typeof submittedNotes !== 'string') {
+        return t.somethingWentWrong
+      }
+
+      try {
+        await addDishAction(submittedName, submittedNotes || undefined)
+        setName('')
+        setNotes('')
+        return t.dishAdded
+      } catch (error) {
+        return messageFrom(error, t.somethingWentWrong)
+      }
+    },
+    '',
+  )
   const filteredDishes = useMemo(() => {
     if (!query) return dishes
     return dishes.filter((dish) =>
@@ -283,14 +314,6 @@ export function Dishes({
   const savedMeta = query
     ? `${filteredDishes.length} ${t.of} ${dishes.length} ${t.saved}`
     : `${dishes.length} ${t.saved}`
-
-  async function handleAdd(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    if (await onAdd(name, notes || undefined)) {
-      setName('')
-      setNotes('')
-    }
-  }
 
   return (
     <section {...stylex.props(styles.section)} aria-labelledby="dishes-heading" id="dishes">
@@ -336,11 +359,12 @@ export function Dishes({
         <summary {...stylex.props(styles.summary)}>
           <PlusIcon /> {t.addNewDish}
         </summary>
-        <form {...stylex.props(styles.form)} onSubmit={(event) => void handleAdd(event)}>
+        <form {...stylex.props(styles.form)} action={submitAction}>
           <label {...stylex.props(styles.label)}>
             {t.dishNameLabel}
             <input
               {...stylex.props(styles.field)}
+              name="name"
               required
               maxLength={80}
               placeholder={t.dishNamePlaceholder}
@@ -352,15 +376,14 @@ export function Dishes({
             {t.note} <span {...stylex.props(styles.optional)}>{t.optional}</span>
             <input
               {...stylex.props(styles.field)}
+              name="notes"
               maxLength={160}
               placeholder={t.notePlaceholder}
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
             />
           </label>
-          <button {...stylex.props(styles.button)} disabled={busy}>
-            {t.saveDish}
-          </button>
+          <SaveDishButton />
           <FormStatus message={statusMessage} />
         </form>
       </details>

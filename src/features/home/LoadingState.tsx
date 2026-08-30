@@ -1,4 +1,6 @@
 import * as stylex from '@stylexjs/stylex'
+import { useRouterState } from '@tanstack/react-router'
+import { useTransition } from 'react'
 import { useI18n } from '~/lib/i18n'
 import { colors } from '../../components/ui/theme.stylex'
 
@@ -10,7 +12,43 @@ const skeletonShimmer = stylex.keyframes({
   to: { backgroundPosition: '-80% 0' },
 })
 
+const navigationProgress = stylex.keyframes({
+  from: { transform: 'translateX(-110%)' },
+  to: { transform: 'translateX(245%)' },
+})
+
 const styles = stylex.create({
+  navigationTrack: {
+    position: 'fixed',
+    zIndex: 100,
+    top: 0,
+    right: 0,
+    left: 0,
+    height: 3,
+    overflow: 'hidden',
+    backgroundColor: 'rgb(239 99 73 / 16%)',
+  },
+  navigationBar: {
+    display: 'block',
+    width: '100%',
+    height: '100%',
+    backgroundColor: colors.coral,
+    [motion]: {
+      width: '42%',
+      animation: `${navigationProgress} 820ms ease-in-out infinite`,
+    },
+  },
+  routePending: {
+    width: 'min(100% - 32px, 1080px)',
+    margin: '0 auto',
+    paddingTop: 92,
+    paddingBottom: 116,
+    [tablet]: {
+      width: 'min(100% - 64px, 1080px)',
+      paddingTop: 116,
+      paddingBottom: 80,
+    },
+  },
   loading: {
     display: 'grid',
     gap: 14,
@@ -83,6 +121,27 @@ const styles = stylex.create({
   },
 })
 
+export function NavigationIndicator() {
+  const isLoading = useRouterState({ select: (state) => state.isLoading })
+  const { t } = useI18n()
+  if (!isLoading) return null
+
+  return (
+    <div {...stylex.props(styles.navigationTrack)} aria-label={t.loading} role="progressbar">
+      <span {...stylex.props(styles.navigationBar)} />
+    </div>
+  )
+}
+
+export function RoutePending() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname })
+  return (
+    <main {...stylex.props(styles.routePending)}>
+      <DashboardSkeleton view={pathname === '/week' ? 'week' : 'dishes'} />
+    </main>
+  )
+}
+
 export function DashboardSkeleton({ view }: { view: 'week' | 'dishes' }) {
   const { t } = useI18n()
   const isWeek = view === 'week'
@@ -117,12 +176,28 @@ export function DashboardSkeleton({ view }: { view: 'week' | 'dishes' }) {
   )
 }
 
-export function DashboardError({ message, onRetry }: { message: string; onRetry: () => void }) {
+export function DashboardError({
+  message,
+  onRetry,
+}: {
+  message: string
+  onRetry: () => Promise<unknown>
+}) {
   const { t } = useI18n()
+  const [isRetrying, startRetryAction] = useTransition()
   return (
     <div {...stylex.props(styles.error)} role="alert">
       <p>{message}</p>
-      <button {...stylex.props(styles.retryButton)} type="button" onClick={onRetry}>
+      <button
+        {...stylex.props(styles.retryButton)}
+        disabled={isRetrying}
+        type="button"
+        onClick={() =>
+          startRetryAction(async () => {
+            await onRetry()
+          })
+        }
+      >
         {t.tryAgain}
       </button>
     </div>

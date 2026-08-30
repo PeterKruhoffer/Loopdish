@@ -1,24 +1,30 @@
 import { convexQuery } from '@convex-dev/react-query'
 import { useQuery } from '@tanstack/react-query'
 import { useMutation } from 'convex/react'
-import { useState } from 'react'
+import { startTransition, useOptimistic, useState } from 'react'
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
-import { friendlyDate, type Day } from '~/lib/dates'
-import { useI18n } from '~/lib/i18n'
-import type { PlannedMeal } from './types'
+import type { Day } from '~/lib/dates'
+import type { Dish, PlannedMeal } from './types'
 
-function errorMessage(error: unknown, fallback: string) {
-  if (error instanceof Error) return error.message
-  return fallback
+type PlanUpdate =
+  | { type: 'plan'; plan: PlannedMeal }
+  | { type: 'complete'; planId: Id<'plannedMeals'>; completedAt: number }
+  | { type: 'remove'; planId: Id<'plannedMeals'> }
+
+const noDishes: Dish[] = []
+const noPlans: PlannedMeal[] = []
+
+export function dinnerDashboardQueryOptions(week: Day[]) {
+  return convexQuery(api.dashboard.get, {
+    startDate: week[0].date,
+    endDate: week[week.length - 1].date,
+  })
 }
 
 export function useDinnerDashboard(week: Day[]) {
-  const { language, t } = useI18n()
   const [selectedDishId, setSelectedDishId] = useState('')
   const [selectedDates, setSelectedDates] = useState<Record<string, string>>({})
-  const [busy, setBusy] = useState(false)
-  const [message, setMessage] = useState('')
 
   const weekKey = week[0].date
   const storedSelectedDate = selectedDates[weekKey]
@@ -26,62 +32,91 @@ export function useDinnerDashboard(week: Day[]) {
     ? storedSelectedDate
     : (week.find((day) => day.isToday)?.date ?? weekKey)
 
-  const dashboardQuery = useQuery(
-    convexQuery(api.dashboard.get, {
-      startDate: week[0].date,
-      endDate: week[week.length - 1].date,
-    }),
-  )
+  const dashboardQuery = useQuery(dinnerDashboardQueryOptions(week))
   const addDishMutation = useMutation(api.dishes.add)
   const planMealMutation = useMutation(api.mealPlans.plan)
   const markEatenMutation = useMutation(api.mealPlans.markEaten)
   const removePlanMutation = useMutation(api.mealPlans.remove)
 
   const data = dashboardQuery.data
-  const activeDishId = selectedDishId || data?.dishes[0]?._id || ''
+  const [optimisticDishes, addOptimisticDish] = useOptimistic(
+    data?.dishes ?? noDishes,
+    (currentDishes, dish: Dish) =>
+      [...currentDishes, dish].sort((a, b) => a.name.localeCompare(b.name)),
+  )
+  const [optimisticPlans, updateOptimisticPlans] = useOptimistic(
+    data?.plannedMeals ?? noPlans,
+    (currentPlans, update: PlanUpdate) => {
+      switch (update.type) {
+        case 'plan':
+          return [...currentPlans.filter((plan) => plan.date !== update.plan.date), update.plan]
+        case 'complete':
+          return currentPlans.map((plan) =>
+            plan._id === update.planId ? { ...plan, completedAt: update.completedAt } : plan,
+          )
+        case 'remove':
+          return currentPlans.filter((plan) => plan._id !== update.planId)
+      }
+    },
+  )
+  const optimisticData = data
+    ? { ...data, dishes: optimisticDishes, plannedMeals: optimisticPlans }
+    : undefined
+  const activeDishId = selectedDishId || optimisticDishes[0]?._id || ''
 
-  async function run(action: () => Promise<unknown>, success: string) {
-    setBusy(true)
-    setMessage('')
-    try {
-      await action()
-      setMessage(success)
-      return true
-    } catch (error) {
-      setMessage(errorMessage(error, t.somethingWentWrong))
-      return false
-    } finally {
-      setBusy(false)
+  async function addDishAction(name: string, notes?: string) {
+    const householdId = data?.household?.id
+    const trimmedName = name.trim()
+    if (householdId) {
+      addOptimisticDish({
+        _id: crypto.randomUUID() as Id<'dishes'>,
+        _creationTime: Date.now(),
+        householdId,
+        name: trimmedName,
+        normalizedName: trimmedName.toLocaleLowerCase(),
+        notes: notes?.trim() || undefined,
+        timesEaten: 0,
+        archived: false,
+      })
     }
+
+    const dishId = await addDishMutation({ name, notes })
+    startTransition(() => setSelectedDishId(dishId))
   }
 
-  async function addDish(name: string, notes?: string) {
-    let dishId: Id<'dishes'> | undefined
-    const added = await run(async () => {
-      dishId = await addDishMutation({ name, notes })
-    }, t.dishAdded)
-    if (dishId) setSelectedDishId(dishId)
-    return added
+  async function planDinnerAction(dishId: string, date: string) {
+    const typedDishId = dishId as Id<'dishes'>
+    const dish = optimisticDishes.find((candidate) => candidate._id === typedDishId)
+    const householdId = data?.household?.id
+    const existingPlan = optimisticPlans.find((plan) => plan.date === date)
+
+    if (dish && householdId) {
+      updateOptimisticPlans({
+        type: 'plan',
+        plan: existingPlan
+          ? { ...existingPlan, dishId: typedDishId, dishName: dish.name, completedAt: undefined }
+          : {
+              _id: crypto.randomUUID() as Id<'plannedMeals'>,
+              _creationTime: Date.now(),
+              householdId,
+              dishId: typedDishId,
+              dishName: dish.name,
+              date,
+            },
+      })
+    }
+
+    await planMealMutation({ dishId: typedDishId, date })
   }
 
-  function planDinner() {
-    if (!activeDishId) return
-    void run(
-      () =>
-        planMealMutation({
-          dishId: activeDishId as Id<'dishes'>,
-          date: selectedDate,
-        }),
-      `${t.dinnerPlanned} ${friendlyDate(selectedDate, language)}.`,
-    )
+  async function markEatenAction(plan: PlannedMeal) {
+    updateOptimisticPlans({ type: 'complete', planId: plan._id, completedAt: Date.now() })
+    await markEatenMutation({ planId: plan._id })
   }
 
-  function markEaten(plan: PlannedMeal) {
-    void run(() => markEatenMutation({ planId: plan._id }), t.historyAdded)
-  }
-
-  function removePlan(plan: PlannedMeal) {
-    void run(() => removePlanMutation({ planId: plan._id }), t.planRemoved)
+  async function removePlanAction(plan: PlannedMeal) {
+    updateOptimisticPlans({ type: 'remove', planId: plan._id })
+    await removePlanMutation({ planId: plan._id })
   }
 
   function setSelectedDate(date: string) {
@@ -89,19 +124,17 @@ export function useDinnerDashboard(week: Day[]) {
   }
 
   return {
-    data,
+    data: optimisticData,
     isPending: dashboardQuery.isPending,
-    queryError: dashboardQuery.isError && !data ? t.dashboardLoadError : '',
-    retryDashboard: () => void dashboardQuery.refetch(),
-    busy,
-    message,
+    queryError: dashboardQuery.isError && !data,
+    retryDashboard: () => dashboardQuery.refetch(),
     selectedDate,
     selectedDishId: activeDishId,
     setSelectedDate,
     setSelectedDishId,
-    addDish,
-    planDinner,
-    markEaten,
-    removePlan,
+    addDishAction,
+    planDinnerAction,
+    markEatenAction,
+    removePlanAction,
   }
 }
