@@ -60,10 +60,15 @@ function RootDocument({ children }: { children: ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        {import.meta.env.DEV ? <link href="/virtual:stylex.css" rel="stylesheet" /> : null}
+        <DevelopmentStyles />
         {children}
         <Scripts />
       </body>
     </html>
   )
+}
+
+function DevelopmentStyles() {
+  if (!import.meta.env.DEV) return null
+  return <link href="/virtual:stylex.css" rel="stylesheet" />
 }

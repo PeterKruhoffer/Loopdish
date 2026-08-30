@@ -8,23 +8,29 @@ import {
   useAuth,
 } from '@workos/authkit-tanstack-react-start/client'
 import { ConvexProviderWithAuth, ConvexReactClient } from 'convex/react'
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, type ReactNode } from 'react'
 import { routeTree } from './routeTree.gen'
 
 export function getRouter() {
   const convexUrl = import.meta.env.VITE_CONVEX_URL as string | undefined
-  const convexClient = convexUrl ? new ConvexReactClient(convexUrl) : undefined
-  const convexQueryClient = convexClient ? new ConvexQueryClient(convexClient) : undefined
+  let convexClient: ConvexReactClient | undefined
+  if (convexUrl) convexClient = new ConvexReactClient(convexUrl)
+
+  let convexQueryClient: ConvexQueryClient | undefined
+  if (convexClient) convexQueryClient = new ConvexQueryClient(convexClient)
+
+  let defaultOptions
+  if (convexQueryClient) {
+    defaultOptions = {
+      queries: {
+        queryKeyHashFn: convexQueryClient.hashFn(),
+        queryFn: convexQueryClient.queryFn(),
+        staleTime: Infinity,
+      },
+    }
+  }
   const queryClient = new QueryClient({
-    defaultOptions: convexQueryClient
-      ? {
-          queries: {
-            queryKeyHashFn: convexQueryClient.hashFn(),
-            queryFn: convexQueryClient.queryFn(),
-            staleTime: Infinity,
-          },
-        }
-      : undefined,
+    defaultOptions,
   })
 
   convexQueryClient?.connect(queryClient)
@@ -37,21 +43,28 @@ export function getRouter() {
       scrollRestoration: true,
       defaultNotFoundComponent: () => <p>That page does not exist.</p>,
       InnerWrap: ({ children }) => (
-        <AuthKitProvider>
-          {convexQueryClient ? (
-            <ConvexProviderWithAuth
-              client={convexQueryClient.convexClient}
-              useAuth={useAuthFromWorkOS}
-            >
-              {children}
-            </ConvexProviderWithAuth>
-          ) : (
-            children
-          )}
-        </AuthKitProvider>
+        <AppProviders convexQueryClient={convexQueryClient}>{children}</AppProviders>
       ),
     }),
     queryClient,
+  )
+}
+
+function AppProviders({
+  convexQueryClient,
+  children,
+}: {
+  convexQueryClient?: ConvexQueryClient
+  children: ReactNode
+}) {
+  if (!convexQueryClient) return <AuthKitProvider>{children}</AuthKitProvider>
+
+  return (
+    <AuthKitProvider>
+      <ConvexProviderWithAuth client={convexQueryClient.convexClient} useAuth={useAuthFromWorkOS}>
+        {children}
+      </ConvexProviderWithAuth>
+    </AuthKitProvider>
   )
 }
 
@@ -62,7 +75,8 @@ function useAuthFromWorkOS() {
   const fetchAccessToken = useCallback(
     async ({ forceRefreshToken }: { forceRefreshToken: boolean }) => {
       if (!user) return null
-      return forceRefreshToken ? ((await refresh()) ?? null) : ((await getAccessToken()) ?? null)
+      if (forceRefreshToken) return (await refresh()) ?? null
+      return (await getAccessToken()) ?? null
     },
     [getAccessToken, refresh, user],
   )

@@ -8,7 +8,10 @@
  * @module
  */
 
-import type * as loopdish from "../loopdish.js";
+import type * as _lib_households from "../_lib/households.js";
+import type * as dashboard from "../dashboard.js";
+import type * as dishes from "../dishes.js";
+import type * as mealPlans from "../mealPlans.js";
 
 import type {
   ApiFromModules,
@@ -17,7 +20,10 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  loopdish: typeof loopdish;
+  "_lib/households": typeof _lib_households;
+  dashboard: typeof dashboard;
+  dishes: typeof dishes;
+  mealPlans: typeof mealPlans;
 }>;
 
 /**
