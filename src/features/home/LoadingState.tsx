@@ -84,10 +84,10 @@ const styles = stylex.create({
   },
 })
 
-export function NavigationShimmer({ active = false }: { active?: boolean }) {
+export function NavigationShimmer() {
   const isNavigating = useRouterState({ select: (state) => state.status === 'pending' })
   const { t } = useI18n()
-  if (!active && !isNavigating) return null
+  if (!isNavigating) return null
 
   return (
     <div {...stylex.props(styles.routeProgress)} role="progressbar" aria-label={t.loading}>

@@ -1,6 +1,6 @@
 import * as stylex from '@stylexjs/stylex'
 import { Link } from '@tanstack/react-router'
-import type { PointerEvent, ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { CalendarIcon, HeartIcon, HomeIcon, SunIcon, UsersIcon } from '~/components/ui/Icon'
 import { LanguageSelect } from '~/components/ui/LanguageSelect'
 import { Logo } from '~/components/ui/Logo'
@@ -160,25 +160,14 @@ export function Hero({ name }: { name?: string | null }) {
 function NavItem({
   to,
   active,
-  onNavigate,
   children,
 }: {
   to: '/' | '/week' | '/dishes' | '/household'
   active: boolean
-  onNavigate: () => void
   children: ReactNode
 }) {
-  function handlePointerDown(event: PointerEvent<HTMLAnchorElement>) {
-    if (event.button === 0) onNavigate()
-  }
-
   return (
-    <Link
-      {...stylex.props(styles.navItem, active && styles.navItemActive)}
-      to={to}
-      onPointerDown={handlePointerDown}
-      onClick={onNavigate}
-    >
+    <Link {...stylex.props(styles.navItem, active && styles.navItemActive)} to={to}>
       {children}
     </Link>
   )
@@ -186,32 +175,22 @@ function NavItem({
 
 export function BottomNav({
   activeView,
-  onNavigate,
 }: {
   activeView: 'today' | 'week' | 'dishes' | 'household'
-  onNavigate: (view: 'today' | 'week' | 'dishes' | 'household') => void
 }) {
   const { t } = useI18n()
   return (
     <nav {...stylex.props(styles.nav)} aria-label={t.mainNavigation}>
-      <NavItem to="/" active={activeView === 'today'} onNavigate={() => onNavigate('today')}>
+      <NavItem to="/" active={activeView === 'today'}>
         <HomeIcon /> <span>{t.today}</span>
       </NavItem>
-      <NavItem to="/week" active={activeView === 'week'} onNavigate={() => onNavigate('week')}>
+      <NavItem to="/week" active={activeView === 'week'}>
         <CalendarIcon /> <span>{t.week}</span>
       </NavItem>
-      <NavItem
-        to="/dishes"
-        active={activeView === 'dishes'}
-        onNavigate={() => onNavigate('dishes')}
-      >
+      <NavItem to="/dishes" active={activeView === 'dishes'}>
         <HeartIcon /> <span>{t.dishes}</span>
       </NavItem>
-      <NavItem
-        to="/household"
-        active={activeView === 'household'}
-        onNavigate={() => onNavigate('household')}
-      >
+      <NavItem to="/household" active={activeView === 'household'}>
         <UsersIcon /> <span>{t.household}</span>
       </NavItem>
     </nav>
