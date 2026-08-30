@@ -47,10 +47,31 @@ pnpm refuses package versions published less than five days ago, including pinne
 - Plan one dinner per day
 - Mark a planned dinner as eaten
 - See recent dinner history and live updates from Convex
+- Get new-dish ideas and a draft for next week from Cloudflare Workers AI
 - Install the production build as a PWA
 - Sign in with Google through WorkOS AuthKit
 
 Each signed-in WorkOS user starts with a private household. People who accept an invite share its dishes, weekly plan, and dinner history.
+
+## AI suggestions
+
+Create a Cloudflare Workers AI API token with `Workers AI - Read` and `Workers AI - Edit`
+permissions. Configure the Convex project first if this checkout does not have a `.env.local` file:
+
+```sh
+pnpm exec convex dev --once
+```
+
+Then add the account ID and token to the Convex deployment rather than the web app:
+
+```sh
+pnpm exec convex env set CLOUDFLARE_ACCOUNT_ID <account-id>
+pnpm exec convex env set CLOUDFLARE_AUTH_TOKEN <api-token>
+```
+
+LoopDish sends saved dish names, notes, and household meal history to Cloudflare when a signed-in
+member requests suggestions. The result remains a preview until the member adds a dish or confirms
+the weekly plan. Each household can make five AI requests in a rolling 24-hour period.
 
 ## PWA note
 

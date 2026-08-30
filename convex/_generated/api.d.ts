@@ -13,6 +13,8 @@ import type * as dashboard from "../dashboard.js";
 import type * as dishes from "../dishes.js";
 import type * as households from "../households.js";
 import type * as mealPlans from "../mealPlans.js";
+import type * as suggestionLimits from "../suggestionLimits.js";
+import type * as suggestions from "../suggestions.js";
 
 import type {
   ApiFromModules,
@@ -26,6 +28,8 @@ declare const fullApi: ApiFromModules<{
   dishes: typeof dishes;
   households: typeof households;
   mealPlans: typeof mealPlans;
+  suggestionLimits: typeof suggestionLimits;
+  suggestions: typeof suggestions;
 }>;
 
 /**

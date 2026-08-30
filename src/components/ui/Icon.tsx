@@ -91,6 +91,15 @@ export function SearchIcon() {
   )
 }
 
+export function SparklesIcon() {
+  return (
+    <Icon>
+      <path d="m12 3 1.2 3.8L17 8l-3.8 1.2L12 13l-1.2-3.8L7 8l3.8-1.2L12 3Z" />
+      <path d="m18.5 14 .8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2ZM5 13l.7 2.3L8 16l-2.3.7L5 19l-.7-2.3L2 16l2.3-.7L5 13Z" />
+    </Icon>
+  )
+}
+
 export function SunIcon() {
   return (
     <Icon fill>

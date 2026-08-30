@@ -51,4 +51,10 @@ export default defineSchema({
     eatenOn: v.string(),
     sourcePlanId: v.optional(v.id('plannedMeals')),
   }).index('by_household_date', ['householdId', 'eatenOn']),
+
+  aiSuggestionUsage: defineTable({
+    householdId: v.id('households'),
+    windowStartedAt: v.number(),
+    count: v.number(),
+  }).index('by_household', ['householdId']),
 })

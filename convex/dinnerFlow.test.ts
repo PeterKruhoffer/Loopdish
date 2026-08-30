@@ -1,6 +1,6 @@
 import { convexTest } from 'convex-test'
-import { describe, expect, it } from 'vite-plus/test'
-import { api } from './_generated/api'
+import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
+import { api, internal } from './_generated/api'
 import schema from './schema'
 import { modules } from './test.setup'
 
@@ -8,6 +8,11 @@ const week = {
   startDate: '2026-08-24',
   endDate: '2026-08-30',
 }
+
+afterEach(() => {
+  vi.unstubAllEnvs()
+  vi.unstubAllGlobals()
+})
 
 describe('LoopDish dinner flow', () => {
   it('requires authentication', async () => {
@@ -17,6 +22,14 @@ describe('LoopDish dinner flow', () => {
     await expect(t.mutation(api.dishes.add, { name: 'Tacos' })).rejects.toThrow(
       'Sign in to use LoopDish',
     )
+    await expect(
+      t.action(api.suggestions.generate, {
+        kind: 'new_dishes',
+        startDate: week.startDate,
+        endDate: week.endDate,
+        language: 'en',
+      }),
+    ).rejects.toThrow('Sign in to use LoopDish')
   })
 
   it('adds, plans, and records a dinner', async () => {
@@ -67,6 +80,44 @@ describe('LoopDish dinner flow', () => {
     })
   })
 
+  it('keeps two to five distinct new dishes from a model response', async () => {
+    const t = convexTest(schema, modules).withIdentity({ subject: 'user-one' })
+    await t.mutation(api.dishes.add, { name: 'Tacos' })
+    vi.stubEnv('CLOUDFLARE_ACCOUNT_ID', 'test-account')
+    vi.stubEnv('CLOUDFLARE_AUTH_TOKEN', 'test-token')
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        Response.json({
+          success: true,
+          result: {
+            response: {
+              dishes: [
+                { name: 'Tacos', notes: 'Saved already', reason: 'Familiar' },
+                { name: 'Tomato soup', notes: 'Serve with bread', reason: 'A simple new option' },
+                { name: 'Chickpea curry', notes: 'Serve with rice', reason: 'Adds some variety' },
+                { name: 'Tomato soup', notes: 'Duplicate', reason: 'Duplicate' },
+                { name: 'tacos', notes: 'Saved already', reason: 'Duplicate' },
+              ],
+            },
+          },
+        }),
+      ),
+    )
+
+    const result = await t.action(api.suggestions.generate, {
+      kind: 'new_dishes',
+      startDate: week.startDate,
+      endDate: week.endDate,
+      language: 'en',
+    })
+
+    expect(result).toMatchObject({
+      kind: 'new_dishes',
+      dishes: [{ name: 'Tomato soup' }, { name: 'Chickpea curry' }],
+    })
+  })
+
   it('replaces an existing plan and rejects duplicate dishes', async () => {
     const t = convexTest(schema, modules).withIdentity({ subject: 'user-one' })
     const firstDishId = await t.mutation(api.dishes.add, {
@@ -95,6 +146,93 @@ describe('LoopDish dinner flow', () => {
         name: 'tacos',
       }),
     ).rejects.toThrow('Tacos is already in your dishes')
+  })
+
+  it('applies a suggested week, reuses dishes, and preserves completed meals', async () => {
+    const t = convexTest(schema, modules).withIdentity({ subject: 'user-one' })
+    const tacosId = await t.mutation(api.dishes.add, { name: 'Tacos' })
+    const completedPlanId = await t.mutation(api.mealPlans.plan, {
+      dishId: tacosId,
+      date: '2026-08-24',
+    })
+    await t.mutation(api.mealPlans.markEaten, { planId: completedPlanId })
+    const oldPlanId = await t.mutation(api.mealPlans.plan, {
+      dishId: tacosId,
+      date: '2026-08-25',
+    })
+
+    const result = await t.mutation(api.mealPlans.applySuggestion, {
+      meals: [
+        { date: '2026-08-24', name: 'Tomato soup', notes: 'With bread' },
+        { date: '2026-08-25', name: 'Tomato soup' },
+        { date: '2026-08-26', name: 'Tomato soup' },
+        { date: '2026-08-27', name: 'Tacos' },
+        { date: '2026-08-28', name: 'Tomato soup' },
+        { date: '2026-08-29', name: 'Tacos' },
+        { date: '2026-08-30', name: 'Tomato soup' },
+      ],
+    })
+
+    expect(result).toEqual({ preservedDates: ['2026-08-24'] })
+    const dashboard = await t.query(api.dashboard.get, week)
+    expect(dashboard.dishes.map((dish) => dish.name)).toEqual(['Tacos', 'Tomato soup'])
+    expect(dashboard.plannedMeals).toHaveLength(7)
+    expect(dashboard.plannedMeals.find((meal) => meal.date === '2026-08-24')).toMatchObject({
+      _id: completedPlanId,
+      dishName: 'Tacos',
+      completedAt: expect.any(Number),
+    })
+    expect(dashboard.plannedMeals.find((meal) => meal.date === '2026-08-25')).toMatchObject({
+      _id: oldPlanId,
+      dishName: 'Tomato soup',
+    })
+  })
+
+  it('rejects invalid suggested weeks before changing the plan', async () => {
+    const t = convexTest(schema, modules).withIdentity({ subject: 'user-one' })
+    await t.mutation(api.dishes.add, { name: 'Tacos' })
+
+    await expect(
+      t.mutation(api.mealPlans.applySuggestion, {
+        meals: [
+          { date: '2026-08-24', name: 'Tacos' },
+          { date: '2026-08-25', name: 'Soup' },
+          { date: '2026-08-26', name: 'Curry' },
+          { date: '2026-08-27', name: 'Pizza' },
+          { date: '2026-08-28', name: 'Tacos' },
+          { date: '2026-08-29', name: 'Tacos' },
+          { date: '2026-08-30', name: 'Tacos' },
+        ],
+      }),
+    ).rejects.toThrow('at most two new dishes')
+
+    await expect(
+      t.mutation(api.mealPlans.applySuggestion, {
+        meals: [
+          { date: '2026-08-24', name: 'Tacos' },
+          { date: '2026-08-25', name: 'Soup' },
+          { date: '2026-08-26', name: 'Tacos' },
+          { date: '2026-08-27', name: 'Soup' },
+          { date: '2026-08-28', name: 'Tacos' },
+          { date: '2026-08-29', name: 'Soup' },
+          { date: '2026-08-31', name: 'Tacos' },
+        ],
+      }),
+    ).rejects.toThrow('seven consecutive days')
+
+    expect((await t.query(api.dashboard.get, week)).plannedMeals).toHaveLength(0)
+  })
+
+  it('limits each household to five AI generations per 24 hours', async () => {
+    const t = convexTest(schema, modules).withIdentity({ subject: 'user-one' })
+    await t.mutation(api.dishes.add, { name: 'Tacos' })
+
+    for (let count = 0; count < 5; count += 1) {
+      await t.mutation(internal.suggestionLimits.reserve, {})
+    }
+    await expect(t.mutation(internal.suggestionLimits.reserve, {})).rejects.toThrow(
+      'five AI suggestions',
+    )
   })
 
   it("does not expose or modify another user's meals", async () => {
