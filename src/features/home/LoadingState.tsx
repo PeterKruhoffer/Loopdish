@@ -1,5 +1,6 @@
 import * as stylex from '@stylexjs/stylex'
 import { useI18n } from '~/lib/i18n'
+import { colors } from '../../components/ui/theme.stylex'
 
 const tablet = '@media (min-width: 720px)'
 const motion = '@media (prefers-reduced-motion: no-preference)'
@@ -57,6 +58,29 @@ const styles = stylex.create({
     whiteSpace: 'nowrap',
     border: 0,
   },
+  error: {
+    display: 'grid',
+    minHeight: 180,
+    placeItems: 'center',
+    alignContent: 'center',
+    gap: 14,
+    padding: 24,
+    border: `1px solid ${colors.line}`,
+    borderRadius: 24,
+    color: colors.muted,
+    backgroundColor: 'rgb(255 254 249 / 72%)',
+    textAlign: 'center',
+  },
+  retryButton: {
+    minHeight: 40,
+    padding: '0 16px',
+    border: 0,
+    borderRadius: 999,
+    color: '#fff',
+    backgroundColor: colors.green,
+    fontSize: 11,
+    fontWeight: 800,
+  },
 })
 
 export function DashboardSkeleton({ view }: { view: 'week' | 'dishes' }) {
@@ -90,5 +114,17 @@ export function DashboardSkeleton({ view }: { view: 'week' | 'dishes' }) {
         </>
       )}
     </section>
+  )
+}
+
+export function DashboardError({ message, onRetry }: { message: string; onRetry: () => void }) {
+  const { t } = useI18n()
+  return (
+    <div {...stylex.props(styles.error)} role="alert">
+      <p>{message}</p>
+      <button {...stylex.props(styles.retryButton)} type="button" onClick={onRetry}>
+        {t.tryAgain}
+      </button>
+    </div>
   )
 }

@@ -1,6 +1,7 @@
 import * as stylex from '@stylexjs/stylex'
 import { CheckIcon, NoodleBowlIcon, PlusIcon } from '~/components/ui/Icon'
 import { SectionHeading } from '~/components/ui/SectionHeading'
+import { DashboardError, DashboardSkeleton } from '~/features/home/LoadingState'
 import type { PlannedMeal } from '~/features/home/types'
 import type { Day } from '~/lib/dates'
 import { useI18n } from '~/lib/i18n'
@@ -12,6 +13,30 @@ const motion = '@media (prefers-reduced-motion: no-preference)'
 
 const styles = stylex.create({
   section: { scrollMarginTop: 20 },
+  weekSwitch: {
+    display: 'inline-flex',
+    gap: 3,
+    marginBottom: 18,
+    padding: 3,
+    border: `1px solid ${colors.line}`,
+    borderRadius: 999,
+    backgroundColor: 'rgb(255 255 255 / 58%)',
+  },
+  weekSwitchButton: {
+    minHeight: 35,
+    padding: '0 13px',
+    border: 0,
+    borderRadius: 999,
+    color: colors.muted,
+    backgroundColor: 'transparent',
+    fontSize: 11,
+    fontWeight: 800,
+    [motion]: { transition: 'color 150ms ease, background-color 150ms ease' },
+  },
+  weekSwitchButtonActive: {
+    color: '#fff',
+    backgroundColor: colors.green,
+  },
   days: {
     display: 'grid',
     gridTemplateColumns: 'repeat(7, minmax(43px, 1fr))',
@@ -289,20 +314,30 @@ function DinnerCard({
 
 export function WeekPlanner({
   week,
+  weekOffset,
   plans,
   selectedDate,
   busy,
+  isPending,
+  queryError,
+  onSelectWeek,
   onSelectDate,
   onMarkEaten,
   onRemove,
+  onRetry,
 }: {
   week: Day[]
+  weekOffset: number
   plans: PlannedMeal[]
   selectedDate: string
   busy: boolean
+  isPending: boolean
+  queryError: string
+  onSelectWeek: (weekOffset: number) => void
   onSelectDate: (date: string) => void
   onMarkEaten: (plan: PlannedMeal) => void
   onRemove: (plan: PlannedMeal) => void
+  onRetry: () => void
 }) {
   const { t } = useI18n()
   const selectedDay = week.find((day) => day.date === selectedDate) ?? week[0]
@@ -312,38 +347,63 @@ export function WeekPlanner({
     <section {...stylex.props(styles.section)} aria-labelledby="week-heading" id="week">
       <SectionHeading
         id="week-heading"
-        title={t.thisWeek}
+        title={weekOffset === 0 ? t.thisWeek : t.nextWeek}
         meta={`${week[0].month} ${week[0].dayNumber}–${week[6].month} ${week[6].dayNumber}`}
       />
 
-      <div {...stylex.props(styles.days)}>
-        {week.map((day) => {
-          const isSelected = day.date === selectedDate
+      <div {...stylex.props(styles.weekSwitch)} aria-label={t.chooseWeek} role="group">
+        {[0, 1].map((offset) => {
+          const isActive = offset === weekOffset
           return (
             <button
-              {...stylex.props(styles.day, isSelected && styles.dayActive)}
-              key={day.date}
-              onClick={() => onSelectDate(day.date)}
-              aria-pressed={isSelected}
-              aria-label={`${day.weekday}, ${day.month} ${day.dayNumber}`}
+              {...stylex.props(styles.weekSwitchButton, isActive && styles.weekSwitchButtonActive)}
+              type="button"
+              key={offset}
+              aria-pressed={isActive}
+              onClick={() => onSelectWeek(offset)}
             >
-              <span {...stylex.props(styles.dayLetter)}>{day.weekday.slice(0, 1)}</span>
-              <strong {...stylex.props(styles.dayNumber, isSelected && styles.dayNumberActive)}>
-                {day.dayNumber}
-              </strong>
-              <PlanDot planned={plans.some((meal) => meal.date === day.date)} />
+              {offset === 0 ? t.thisWeek : t.nextWeek}
             </button>
           )
         })}
       </div>
 
-      <DinnerCard
-        day={selectedDay}
-        plan={selectedPlan}
-        busy={busy}
-        onMarkEaten={onMarkEaten}
-        onRemove={onRemove}
-      />
+      {isPending ? (
+        <DashboardSkeleton view="week" />
+      ) : queryError ? (
+        <DashboardError message={queryError} onRetry={onRetry} />
+      ) : (
+        <>
+          <div {...stylex.props(styles.days)}>
+            {week.map((day) => {
+              const isSelected = day.date === selectedDate
+              return (
+                <button
+                  {...stylex.props(styles.day, isSelected && styles.dayActive)}
+                  key={day.date}
+                  onClick={() => onSelectDate(day.date)}
+                  aria-pressed={isSelected}
+                  aria-label={`${day.weekday}, ${day.month} ${day.dayNumber}`}
+                >
+                  <span {...stylex.props(styles.dayLetter)}>{day.weekday.slice(0, 1)}</span>
+                  <strong {...stylex.props(styles.dayNumber, isSelected && styles.dayNumberActive)}>
+                    {day.dayNumber}
+                  </strong>
+                  <PlanDot planned={plans.some((meal) => meal.date === day.date)} />
+                </button>
+              )
+            })}
+          </div>
+
+          <DinnerCard
+            day={selectedDay}
+            plan={selectedPlan}
+            busy={busy}
+            onMarkEaten={onMarkEaten}
+            onRemove={onRemove}
+          />
+        </>
+      )}
     </section>
   )
 }

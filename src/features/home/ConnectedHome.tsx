@@ -1,18 +1,18 @@
 import * as stylex from '@stylexjs/stylex'
 import { Link } from '@tanstack/react-router'
 import { useAuth } from '@workos/authkit-tanstack-react-start/client'
-import { useMemo } from 'react'
+import { useMemo, useState, useSyncExternalStore } from 'react'
 import { CalendarIcon, HeartIcon } from '~/components/ui/Icon'
 import { Dishes } from '~/features/dishes/Dishes'
 import { History } from '~/features/history/History'
 import { Household } from '~/features/household/Household'
 import { PlanDinner } from '~/features/week/PlanDinner'
 import { WeekPlanner } from '~/features/week/WeekPlanner'
-import { makeWeek } from '~/lib/dates'
+import { localDateKey, makeWeek } from '~/lib/dates'
 import { useI18n } from '~/lib/i18n'
 import { colors } from '../../components/ui/theme.stylex'
 import { AppHeader, BottomNav, Hero } from './AppChrome'
-import { DashboardSkeleton } from './LoadingState'
+import { DashboardError, DashboardSkeleton } from './LoadingState'
 import { useDinnerDashboard } from './useDinnerDashboard'
 
 const tablet = '@media (min-width: 720px)'
@@ -152,10 +152,53 @@ function FirstRunGuide() {
   )
 }
 
+function getLocalDay() {
+  return localDateKey(new Date())
+}
+
+function subscribeToLocalDay(onDayChange: () => void) {
+  let midnightTimer = 0
+
+  function scheduleMidnightRefresh() {
+    window.clearTimeout(midnightTimer)
+    const now = new Date()
+    const tomorrow = new Date(now)
+    tomorrow.setHours(24, 0, 0, 0)
+    midnightTimer = window.setTimeout(refreshDay, tomorrow.getTime() - now.getTime() + 100)
+  }
+
+  function refreshDay() {
+    onDayChange()
+    scheduleMidnightRefresh()
+  }
+
+  function refreshVisibleDay() {
+    if (!document.hidden) refreshDay()
+  }
+
+  scheduleMidnightRefresh()
+  window.addEventListener('focus', refreshDay)
+  document.addEventListener('visibilitychange', refreshVisibleDay)
+  return () => {
+    window.clearTimeout(midnightTimer)
+    window.removeEventListener('focus', refreshDay)
+    document.removeEventListener('visibilitychange', refreshVisibleDay)
+  }
+}
+
+function useLocalDay() {
+  return useSyncExternalStore(subscribeToLocalDay, getLocalDay, getLocalDay)
+}
+
 export function ConnectedHome({ view }: { view: AppView }) {
   const { signOut, user } = useAuth()
   const { language } = useI18n()
-  const week = useMemo(() => makeWeek(language), [language])
+  const [weekOffset, setWeekOffset] = useState(0)
+  const localDay = useLocalDay()
+  const week = useMemo(
+    () => makeWeek(language, weekOffset, new Date(`${localDay}T12:00:00`)),
+    [language, localDay, weekOffset],
+  )
   const dashboard = useDinnerDashboard(week)
   const data = dashboard.data
 
@@ -170,40 +213,51 @@ export function ConnectedHome({ view }: { view: AppView }) {
           </>
         )}
         {view !== 'dishes' && <StatusMessage message={dashboard.message} />}
-        {(view === 'week' || view === 'dishes') && dashboard.isPending ? (
-          <DashboardSkeleton view={view} />
-        ) : view === 'week' ? (
+        {view === 'week' ? (
           <>
             <WeekPlanner
               week={week}
+              weekOffset={weekOffset}
               plans={data?.plannedMeals ?? []}
               selectedDate={dashboard.selectedDate}
               busy={dashboard.busy}
+              isPending={dashboard.isPending}
+              queryError={dashboard.queryError}
+              onSelectWeek={setWeekOffset}
               onSelectDate={dashboard.setSelectedDate}
               onMarkEaten={dashboard.markEaten}
               onRemove={dashboard.removePlan}
+              onRetry={dashboard.retryDashboard}
             />
-            <PlanDinner
-              dishes={data?.dishes ?? []}
-              week={week}
-              selectedDishId={dashboard.selectedDishId}
-              selectedDate={dashboard.selectedDate}
-              busy={dashboard.busy}
-              onSelectDish={dashboard.setSelectedDishId}
-              onSelectDate={dashboard.setSelectedDate}
-              onPlan={dashboard.planDinner}
-            />
+            {!dashboard.isPending && !dashboard.queryError && (
+              <PlanDinner
+                dishes={data?.dishes ?? []}
+                week={week}
+                selectedDishId={dashboard.selectedDishId}
+                selectedDate={dashboard.selectedDate}
+                busy={dashboard.busy}
+                onSelectDish={dashboard.setSelectedDishId}
+                onSelectDate={dashboard.setSelectedDate}
+                onPlan={dashboard.planDinner}
+              />
+            )}
           </>
         ) : view === 'dishes' ? (
-          <>
-            <Dishes
-              dishes={data?.dishes ?? []}
-              busy={dashboard.busy}
-              statusMessage={dashboard.message}
-              onAdd={dashboard.addDish}
-            />
-            <History meals={data?.recentMeals ?? []} />
-          </>
+          dashboard.isPending ? (
+            <DashboardSkeleton view="dishes" />
+          ) : dashboard.queryError ? (
+            <DashboardError message={dashboard.queryError} onRetry={dashboard.retryDashboard} />
+          ) : (
+            <>
+              <Dishes
+                dishes={data?.dishes ?? []}
+                busy={dashboard.busy}
+                statusMessage={dashboard.message}
+                onAdd={dashboard.addDish}
+              />
+              <History meals={data?.recentMeals ?? []} />
+            </>
+          )
         ) : view === 'household' ? (
           <Household onSignOut={() => void signOut()} />
         ) : null}

@@ -16,11 +16,15 @@ function errorMessage(error: unknown, fallback: string) {
 export function useDinnerDashboard(week: Day[]) {
   const { language, t } = useI18n()
   const [selectedDishId, setSelectedDishId] = useState('')
-  const [selectedDate, setSelectedDate] = useState(
-    week.find((day) => day.isToday)?.date ?? week[0].date,
-  )
+  const [selectedDates, setSelectedDates] = useState<Record<string, string>>({})
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
+
+  const weekKey = week[0].date
+  const storedSelectedDate = selectedDates[weekKey]
+  const selectedDate = week.some((day) => day.date === storedSelectedDate)
+    ? storedSelectedDate
+    : (week.find((day) => day.isToday)?.date ?? weekKey)
 
   const dashboardQuery = useQuery(
     convexQuery(api.dashboard.get, {
@@ -80,9 +84,15 @@ export function useDinnerDashboard(week: Day[]) {
     void run(() => removePlanMutation({ planId: plan._id }), t.planRemoved)
   }
 
+  function setSelectedDate(date: string) {
+    setSelectedDates((current) => ({ ...current, [weekKey]: date }))
+  }
+
   return {
     data,
     isPending: dashboardQuery.isPending,
+    queryError: dashboardQuery.isError && !data ? t.dashboardLoadError : '',
+    retryDashboard: () => void dashboardQuery.refetch(),
     busy,
     message,
     selectedDate,

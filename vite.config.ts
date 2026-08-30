@@ -27,7 +27,7 @@ export default defineConfig(({ mode }) => ({
           viteReact(),
         ],
   test: {
-    include: ['convex/**/*.test.ts'],
+    include: ['convex/**/*.test.ts', 'src/**/*.test.ts'],
   },
   fmt: {
     ignorePatterns: [
