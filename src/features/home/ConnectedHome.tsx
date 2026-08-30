@@ -12,7 +12,7 @@ import { makeWeek } from '~/lib/dates'
 import { useI18n } from '~/lib/i18n'
 import { colors } from '../../components/ui/theme.stylex'
 import { AppHeader, BottomNav, Hero } from './AppChrome'
-import { DashboardSkeleton, NavigationShimmer } from './LoadingState'
+import { DashboardSkeleton } from './LoadingState'
 import { useDinnerDashboard } from './useDinnerDashboard'
 
 const tablet = '@media (min-width: 720px)'
@@ -161,7 +161,6 @@ export function ConnectedHome({ view }: { view: AppView }) {
 
   return (
     <div {...stylex.props(styles.shell)}>
-      <NavigationShimmer />
       <AppHeader name={user?.firstName} email={user?.email} householdName={data?.household?.name} />
       <main>
         {view === 'today' && (

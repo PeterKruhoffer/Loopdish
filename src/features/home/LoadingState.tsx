@@ -1,15 +1,8 @@
 import * as stylex from '@stylexjs/stylex'
-import { useRouterState } from '@tanstack/react-router'
 import { useI18n } from '~/lib/i18n'
-import { colors } from '../../components/ui/theme.stylex'
 
 const tablet = '@media (min-width: 720px)'
 const motion = '@media (prefers-reduced-motion: no-preference)'
-
-const shimmer = stylex.keyframes({
-  from: { transform: 'translateX(-100%)' },
-  to: { transform: 'translateX(300%)' },
-})
 
 const skeletonShimmer = stylex.keyframes({
   from: { backgroundPosition: '180% 0' },
@@ -17,24 +10,6 @@ const skeletonShimmer = stylex.keyframes({
 })
 
 const styles = stylex.create({
-  routeProgress: {
-    position: 'fixed',
-    top: 0,
-    right: 0,
-    left: 0,
-    zIndex: 20,
-    height: 4,
-    overflow: 'hidden',
-    backgroundColor: colors.mint,
-  },
-  routeProgressBar: {
-    width: '42%',
-    height: '100%',
-    borderRadius: 999,
-    backgroundColor: colors.coral,
-    boxShadow: '0 0 8px rgb(239 99 73 / 72%)',
-    [motion]: { animation: `${shimmer} 850ms ease-in-out infinite` },
-  },
   loading: {
     display: 'grid',
     gap: 14,
@@ -83,18 +58,6 @@ const styles = stylex.create({
     border: 0,
   },
 })
-
-export function NavigationShimmer() {
-  const isNavigating = useRouterState({ select: (state) => state.status === 'pending' })
-  const { t } = useI18n()
-  if (!isNavigating) return null
-
-  return (
-    <div {...stylex.props(styles.routeProgress)} role="progressbar" aria-label={t.loading}>
-      <div {...stylex.props(styles.routeProgressBar)} />
-    </div>
-  )
-}
 
 export function DashboardSkeleton({ view }: { view: 'week' | 'dishes' }) {
   const { t } = useI18n()
