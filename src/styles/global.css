@@ -28,6 +28,7 @@
 
   html {
     min-width: 320px;
+    overflow-x: hidden;
     background: #fff9e9;
     overscroll-behavior: none;
   }

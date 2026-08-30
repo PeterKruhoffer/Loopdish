@@ -33,7 +33,8 @@ const styles = stylex.create({
     boxShadow: '0 6px 18px rgb(73 58 39 / 4%)',
     fontSize: 14,
   },
-  groups: { display: 'grid', gap: 28 },
+  groups: { display: 'grid', minWidth: 0, gap: 28 },
+  group: { minWidth: 0 },
   groupHeading: {
     display: 'flex',
     alignItems: 'baseline',
@@ -50,6 +51,9 @@ const styles = stylex.create({
   groupCount: { color: colors.muted, fontSize: 10 },
   shelf: {
     display: 'grid',
+    width: '100%',
+    minWidth: 0,
+    maxWidth: '100%',
     gridAutoColumns: 'minmax(150px, 44%)',
     gridAutoFlow: 'column',
     gap: 9,
@@ -204,7 +208,7 @@ function DishShelf({ id, title, dishes }: { id: string; title: string; dishes: D
   if (dishes.length === 0) return null
 
   return (
-    <section aria-labelledby={id}>
+    <section {...stylex.props(styles.group)} aria-labelledby={id}>
       <div {...stylex.props(styles.groupHeading)}>
         <h3 {...stylex.props(styles.groupTitle)} id={id}>
           {title}
