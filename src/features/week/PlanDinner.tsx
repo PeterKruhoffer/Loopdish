@@ -2,6 +2,7 @@ import * as stylex from '@stylexjs/stylex'
 import { PlusIcon } from '~/components/ui/Icon'
 import type { Dish } from '~/features/home/types'
 import type { Day } from '~/lib/dates'
+import { useI18n } from '~/lib/i18n'
 import { colors } from '../../components/ui/theme.stylex'
 
 const display = 'Manrope, system-ui, sans-serif'
@@ -98,12 +99,9 @@ function PlanDinnerForm({
   onSelectDate,
   onPlan,
 }: PlanDinnerFormProps) {
+  const { t } = useI18n()
   if (dishes.length === 0) {
-    return (
-      <p {...stylex.props(styles.empty)}>
-        Add your first dish, then you can put it on the calendar.
-      </p>
-    )
+    return <p {...stylex.props(styles.empty)}>{t.addFirstDish}</p>
   }
 
   return (
@@ -115,7 +113,7 @@ function PlanDinnerForm({
       }}
     >
       <label {...stylex.props(styles.label)}>
-        Dish
+        {t.dish}
         <select
           {...stylex.props(styles.select)}
           value={selectedDishId}
@@ -129,7 +127,7 @@ function PlanDinnerForm({
         </select>
       </label>
       <label {...stylex.props(styles.label)}>
-        Day
+        {t.day}
         <select
           {...stylex.props(styles.select)}
           value={selectedDate}
@@ -143,7 +141,7 @@ function PlanDinnerForm({
         </select>
       </label>
       <button {...stylex.props(styles.button)} disabled={busy}>
-        Add to the week
+        {t.addToWeek}
       </button>
     </form>
   )
@@ -168,6 +166,7 @@ export function PlanDinner({
   onSelectDate: (date: string) => void
   onPlan: () => void
 }) {
+  const { t } = useI18n()
   return (
     <section {...stylex.props(styles.panel)} aria-labelledby="plan-heading" id="plan-dinner">
       <div {...stylex.props(styles.heading)}>
@@ -175,9 +174,9 @@ export function PlanDinner({
           <PlusIcon />
         </span>
         <div>
-          <p {...stylex.props(styles.eyebrow)}>Pick from your dishes</p>
+          <p {...stylex.props(styles.eyebrow)}>{t.pickFromDishes}</p>
           <h2 {...stylex.props(styles.title)} id="plan-heading">
-            Plan a dinner
+            {t.planDinner}
           </h2>
         </div>
       </div>

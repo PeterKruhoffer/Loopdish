@@ -8,6 +8,7 @@ import { History } from '~/features/history/History'
 import { PlanDinner } from '~/features/week/PlanDinner'
 import { WeekPlanner } from '~/features/week/WeekPlanner'
 import { makeWeek } from '~/lib/dates'
+import { useI18n } from '~/lib/i18n'
 import { colors } from '../../components/ui/theme.stylex'
 import { AppHeader, BottomNav, Hero } from './AppChrome'
 import { useDinnerDashboard } from './useDinnerDashboard'
@@ -116,26 +117,22 @@ function StatusMessage({ message }: { message: string }) {
 }
 
 function FirstRunGuide() {
+  const { t } = useI18n()
   return (
     <section {...stylex.props(styles.firstRun)} aria-labelledby="first-run-heading">
-      <p {...stylex.props(styles.firstRunEyebrow)}>A good place to start</p>
+      <p {...stylex.props(styles.firstRunEyebrow)}>{t.firstRunEyebrow}</p>
       <h2 {...stylex.props(styles.firstRunTitle)} id="first-run-heading">
-        Build your dinner rotation.
+        {t.firstRunTitle}
       </h2>
-      <p {...stylex.props(styles.firstRunCopy)}>
-        Save the dinners you already make, then put a few on this week's plan. You can change your
-        mind later.
-      </p>
+      <p {...stylex.props(styles.firstRunCopy)}>{t.firstRunCopy}</p>
       <div {...stylex.props(styles.firstRunActions)}>
         <Link {...stylex.props(styles.firstRunAction)} to="/dishes">
           <span {...stylex.props(styles.firstRunIcon)}>
             <HeartIcon />
           </span>
           <span>
-            <strong {...stylex.props(styles.firstRunActionTitle)}>Add your dishes</strong>
-            <span {...stylex.props(styles.firstRunActionCopy)}>
-              Build your list of regular dinners.
-            </span>
+            <strong {...stylex.props(styles.firstRunActionTitle)}>{t.firstRunDishesTitle}</strong>
+            <span {...stylex.props(styles.firstRunActionCopy)}>{t.firstRunDishesCopy}</span>
           </span>
         </Link>
         <Link {...stylex.props(styles.firstRunAction, styles.firstRunActionAlt)} to="/week">
@@ -143,10 +140,8 @@ function FirstRunGuide() {
             <CalendarIcon />
           </span>
           <span>
-            <strong {...stylex.props(styles.firstRunActionTitle)}>Plan the week</strong>
-            <span {...stylex.props(styles.firstRunActionCopy)}>
-              Pick what sounds good for each day.
-            </span>
+            <strong {...stylex.props(styles.firstRunActionTitle)}>{t.firstRunWeekTitle}</strong>
+            <span {...stylex.props(styles.firstRunActionCopy)}>{t.firstRunWeekCopy}</span>
           </span>
         </Link>
       </div>
@@ -156,7 +151,8 @@ function FirstRunGuide() {
 
 export function ConnectedHome({ view }: { view: AppView }) {
   const { signOut, user } = useAuth()
-  const week = useMemo(makeWeek, [])
+  const { language } = useI18n()
+  const week = useMemo(() => makeWeek(language), [language])
   const dashboard = useDinnerDashboard(week)
   const data = dashboard.data
 

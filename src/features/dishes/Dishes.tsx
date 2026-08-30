@@ -4,6 +4,7 @@ import { PlateIcon, PlusIcon } from '~/components/ui/Icon'
 import { SectionHeading } from '~/components/ui/SectionHeading'
 import type { Dish } from '~/features/home/types'
 import { friendlyDate } from '~/lib/dates'
+import { useI18n } from '~/lib/i18n'
 import { colors } from '../../components/ui/theme.stylex'
 
 const display = 'Manrope, system-ui, sans-serif'
@@ -132,17 +133,19 @@ function DishNotes({ notes }: { notes?: string }) {
 }
 
 function DishStat({ lastEatenOn }: { lastEatenOn?: string }) {
-  if (!lastEatenOn) return <p {...stylex.props(styles.stat)}>Not tried yet</p>
-  return <p {...stylex.props(styles.stat)}>Last had {friendlyDate(lastEatenOn)}</p>
+  const { language, t } = useI18n()
+  if (!lastEatenOn) return <p {...stylex.props(styles.stat)}>{t.notTriedYet}</p>
+  return (
+    <p {...stylex.props(styles.stat)}>
+      {t.lastHad} {friendlyDate(lastEatenOn, language)}
+    </p>
+  )
 }
 
 function EmptyDishes({ dishes }: { dishes: Dish[] }) {
+  const { t } = useI18n()
   if (dishes.length > 0) return null
-  return (
-    <p {...stylex.props(styles.empty)}>
-      Spaghetti, tacos, takeout. Start with the dinners already in your rotation.
-    </p>
-  )
+  return <p {...stylex.props(styles.empty)}>{t.emptyDishes}</p>
 }
 
 export function Dishes({
@@ -154,6 +157,7 @@ export function Dishes({
   busy: boolean
   onAdd: (name: string, notes?: string) => Promise<boolean>
 }) {
+  const { t } = useI18n()
   const [name, setName] = useState('')
   const [notes, setNotes] = useState('')
 
@@ -167,7 +171,11 @@ export function Dishes({
 
   return (
     <section {...stylex.props(styles.section)} aria-labelledby="dishes-heading" id="dishes">
-      <SectionHeading id="dishes-heading" title="Your dishes" meta={`${dishes.length} saved`} />
+      <SectionHeading
+        id="dishes-heading"
+        title={t.yourDishes}
+        meta={`${dishes.length} ${t.saved}`}
+      />
 
       <div {...stylex.props(styles.cards)}>
         {dishes.map((dish, index) => (
@@ -179,32 +187,32 @@ export function Dishes({
 
       <details {...stylex.props(styles.disclosure)}>
         <summary {...stylex.props(styles.summary)}>
-          <PlusIcon /> Add a new dish
+          <PlusIcon /> {t.addNewDish}
         </summary>
         <form {...stylex.props(styles.form)} onSubmit={(event) => void handleAdd(event)}>
           <label {...stylex.props(styles.label)}>
-            What do you call it?
+            {t.dishNameLabel}
             <input
               {...stylex.props(styles.field)}
               required
               maxLength={80}
-              placeholder="Rotisserie chicken"
+              placeholder={t.dishNamePlaceholder}
               value={name}
               onChange={(event) => setName(event.target.value)}
             />
           </label>
           <label {...stylex.props(styles.label)}>
-            Note <span {...stylex.props(styles.optional)}>optional</span>
+            {t.note} <span {...stylex.props(styles.optional)}>{t.optional}</span>
             <input
               {...stylex.props(styles.field)}
               maxLength={160}
-              placeholder="Usually with salad and bread"
+              placeholder={t.notePlaceholder}
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
             />
           </label>
           <button {...stylex.props(styles.button)} disabled={busy}>
-            Save dish
+            {t.saveDish}
           </button>
         </form>
       </details>

@@ -3,6 +3,7 @@ import { CheckIcon, NoodleBowlIcon, PlusIcon } from '~/components/ui/Icon'
 import { SectionHeading } from '~/components/ui/SectionHeading'
 import type { PlannedMeal } from '~/features/home/types'
 import type { Day } from '~/lib/dates'
+import { useI18n } from '~/lib/i18n'
 import { colors } from '../../components/ui/theme.stylex'
 
 const display = 'Manrope, system-ui, sans-serif'
@@ -179,8 +180,9 @@ function PlanDot({ planned }: { planned: boolean }) {
 }
 
 function TodayLabel({ isToday }: { isToday: boolean }) {
+  const { t } = useI18n()
   if (!isToday) return null
-  return <span {...stylex.props(styles.today)}>Today</span>
+  return <span {...stylex.props(styles.today)}>{t.today}</span>
 }
 
 function DinnerActions({
@@ -196,10 +198,11 @@ function DinnerActions({
   onMarkEaten: (plan: PlannedMeal) => void
   onRemove: (plan: PlannedMeal) => void
 }) {
+  const { t } = useI18n()
   if (plan.completedAt) {
     return (
       <span {...stylex.props(styles.eaten)}>
-        <CheckIcon /> Added to history
+        <CheckIcon /> {t.addedToHistory}
       </span>
     )
   }
@@ -207,21 +210,22 @@ function DinnerActions({
   return (
     <div {...stylex.props(styles.actions)}>
       <button {...stylex.props(styles.ateButton)} disabled={busy} onClick={() => onMarkEaten(plan)}>
-        <CheckIcon /> We ate this
+        <CheckIcon /> {t.weAteThis}
       </button>
       <button
         {...stylex.props(styles.removeButton)}
-        aria-label={`Remove ${plan.dishName} from ${day.weekday}`}
+        aria-label={`${t.remove} ${plan.dishName}, ${day.weekday}`}
         disabled={busy}
         onClick={() => onRemove(plan)}
       >
-        Remove
+        {t.remove}
       </button>
     </div>
   )
 }
 
 function EmptyDinner({ day }: { day: Day }) {
+  const { t } = useI18n()
   return (
     <article {...stylex.props(styles.card, styles.emptyCard)}>
       <DinnerTopline day={day} />
@@ -229,10 +233,10 @@ function EmptyDinner({ day }: { day: Day }) {
         <span {...stylex.props(styles.emptyPlate)} aria-hidden="true">
           <PlusIcon />
         </span>
-        <h3 {...stylex.props(styles.emptyTitle)}>Nothing planned</h3>
-        <p {...stylex.props(styles.emptyCopy)}>Maybe that's exactly right.</p>
+        <h3 {...stylex.props(styles.emptyTitle)}>{t.nothingPlanned}</h3>
+        <p {...stylex.props(styles.emptyCopy)}>{t.nothingPlannedCopy}</p>
         <a {...stylex.props(styles.pickButton)} href="#plan-dinner">
-          Pick a dinner
+          {t.pickDinner}
         </a>
       </div>
     </article>
@@ -300,6 +304,7 @@ export function WeekPlanner({
   onMarkEaten: (plan: PlannedMeal) => void
   onRemove: (plan: PlannedMeal) => void
 }) {
+  const { t } = useI18n()
   const selectedDay = week.find((day) => day.date === selectedDate) ?? week[0]
   const selectedPlan = plans.find((meal) => meal.date === selectedDate)
 
@@ -307,7 +312,7 @@ export function WeekPlanner({
     <section {...stylex.props(styles.section)} aria-labelledby="week-heading" id="week">
       <SectionHeading
         id="week-heading"
-        title="This week"
+        title={t.thisWeek}
         meta={`${week[0].month} ${week[0].dayNumber}–${week[6].month} ${week[6].dayNumber}`}
       />
 

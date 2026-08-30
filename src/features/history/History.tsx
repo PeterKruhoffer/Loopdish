@@ -3,6 +3,7 @@ import { CheckIcon } from '~/components/ui/Icon'
 import { SectionHeading } from '~/components/ui/SectionHeading'
 import type { RecentMeal } from '~/features/home/types'
 import { friendlyDate } from '~/lib/dates'
+import { useI18n } from '~/lib/i18n'
 import { colors } from '../../components/ui/theme.stylex'
 
 const tablet = '@media (min-width: 720px)'
@@ -41,14 +42,16 @@ const styles = stylex.create({
 })
 
 function EmptyHistory({ meals }: { meals: RecentMeal[] }) {
+  const { t } = useI18n()
   if (meals.length > 0) return null
-  return <p {...stylex.props(styles.empty)}>Completed dinners will show up here.</p>
+  return <p {...stylex.props(styles.empty)}>{t.emptyHistory}</p>
 }
 
 export function History({ meals }: { meals: RecentMeal[] }) {
+  const { language, t } = useI18n()
   return (
     <section {...stylex.props(styles.section)} aria-labelledby="history-heading">
-      <SectionHeading id="history-heading" title="Recently eaten" />
+      <SectionHeading id="history-heading" title={t.recentlyEaten} />
       <div {...stylex.props(styles.list)}>
         {meals.map((meal) => (
           <div {...stylex.props(styles.row)} key={meal._id}>
@@ -56,7 +59,7 @@ export function History({ meals }: { meals: RecentMeal[] }) {
               <CheckIcon />
             </span>
             <strong {...stylex.props(styles.name)}>{meal.dishName}</strong>
-            <span {...stylex.props(styles.date)}>{friendlyDate(meal.eatenOn)}</span>
+            <span {...stylex.props(styles.date)}>{friendlyDate(meal.eatenOn, language)}</span>
           </div>
         ))}
         <EmptyHistory meals={meals} />

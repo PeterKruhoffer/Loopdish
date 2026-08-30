@@ -1,3 +1,5 @@
+import type { Language } from './i18n'
+
 export type Day = {
   date: string
   weekday: string
@@ -13,7 +15,7 @@ function dateKey(date: Date) {
   return `${year}-${month}-${day}`
 }
 
-export function makeWeek(): Day[] {
+export function makeWeek(language: Language): Day[] {
   const today = new Date()
   const monday = new Date(today)
   const offset = (today.getDay() + 6) % 7
@@ -24,16 +26,16 @@ export function makeWeek(): Day[] {
     date.setDate(monday.getDate() + index)
     return {
       date: dateKey(date),
-      weekday: date.toLocaleDateString(undefined, { weekday: 'short' }),
+      weekday: date.toLocaleDateString(language, { weekday: 'short' }),
       dayNumber: String(date.getDate()),
-      month: date.toLocaleDateString(undefined, { month: 'short' }),
+      month: date.toLocaleDateString(language, { month: 'short' }),
       isToday: dateKey(date) === dateKey(today),
     }
   })
 }
 
-export function friendlyDate(value: string) {
-  return new Date(`${value}T12:00:00`).toLocaleDateString(undefined, {
+export function friendlyDate(value: string, language: Language) {
+  return new Date(`${value}T12:00:00`).toLocaleDateString(language, {
     month: 'short',
     day: 'numeric',
   })

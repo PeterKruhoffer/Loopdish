@@ -5,14 +5,16 @@ import { useState } from 'react'
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
 import { friendlyDate, type Day } from '~/lib/dates'
+import { useI18n } from '~/lib/i18n'
 import type { PlannedMeal } from './types'
 
-function errorMessage(error: unknown) {
+function errorMessage(error: unknown, fallback: string) {
   if (error instanceof Error) return error.message
-  return 'Something went wrong'
+  return fallback
 }
 
 export function useDinnerDashboard(week: Day[]) {
+  const { language, t } = useI18n()
   const [selectedDishId, setSelectedDishId] = useState('')
   const [selectedDate, setSelectedDate] = useState(
     week.find((day) => day.isToday)?.date ?? week[0].date,
@@ -42,7 +44,7 @@ export function useDinnerDashboard(week: Day[]) {
       setMessage(success)
       return true
     } catch (error) {
-      setMessage(errorMessage(error))
+      setMessage(errorMessage(error, t.somethingWentWrong))
       return false
     } finally {
       setBusy(false)
@@ -53,7 +55,7 @@ export function useDinnerDashboard(week: Day[]) {
     let dishId: Id<'dishes'> | undefined
     const added = await run(async () => {
       dishId = await addDishMutation({ name, notes })
-    }, 'Dish added.')
+    }, t.dishAdded)
     if (dishId) setSelectedDishId(dishId)
     return added
   }
@@ -66,16 +68,16 @@ export function useDinnerDashboard(week: Day[]) {
           dishId: activeDishId as Id<'dishes'>,
           date: selectedDate,
         }),
-      `Dinner planned for ${friendlyDate(selectedDate)}.`,
+      `${t.dinnerPlanned} ${friendlyDate(selectedDate, language)}.`,
     )
   }
 
   function markEaten(plan: PlannedMeal) {
-    void run(() => markEatenMutation({ planId: plan._id }), 'Added to dinner history.')
+    void run(() => markEatenMutation({ planId: plan._id }), t.historyAdded)
   }
 
   function removePlan(plan: PlannedMeal) {
-    void run(() => removePlanMutation({ planId: plan._id }), 'Plan removed.')
+    void run(() => removePlanMutation({ planId: plan._id }), t.planRemoved)
   }
 
   return {

@@ -1,6 +1,8 @@
 import * as stylex from '@stylexjs/stylex'
 import { useAuth } from '@workos/authkit-tanstack-react-start/client'
+import { LanguageSelect } from '~/components/ui/LanguageSelect'
 import { Logo } from '~/components/ui/Logo'
+import { useI18n } from '~/lib/i18n'
 import { colors } from '../../components/ui/theme.stylex'
 import { ConnectedHome, type AppView } from './ConnectedHome'
 
@@ -20,6 +22,7 @@ const styles = stylex.create({
     boxShadow: '0 18px 50px rgb(73 58 39 / 10%)',
     [tablet]: { padding: 44 },
   },
+  cardTop: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 },
   eyebrow: {
     marginTop: 42,
     marginBottom: 5,
@@ -63,10 +66,11 @@ const styles = stylex.create({
 
 export function HomePage({ view }: { view: AppView }) {
   const { loading, user } = useAuth()
+  const { t } = useI18n()
   if (loading) {
     return (
       <main {...stylex.props(styles.shell)}>
-        <p {...stylex.props(styles.loading)}>Loading LoopDish…</p>
+        <p {...stylex.props(styles.loading)}>{t.loading}</p>
       </main>
     )
   }
@@ -75,17 +79,18 @@ export function HomePage({ view }: { view: AppView }) {
   return (
     <main {...stylex.props(styles.shell)}>
       <div {...stylex.props(styles.card)}>
-        <Logo />
-        <p {...stylex.props(styles.eyebrow)}>Dinner, remembered</p>
-        <h1 {...stylex.props(styles.title)}>Your dinner rotation starts here.</h1>
-        <p {...stylex.props(styles.copy)}>
-          Sign in with Google to plan the week and keep your dinner history private.
-        </p>
+        <div {...stylex.props(styles.cardTop)}>
+          <Logo />
+          <LanguageSelect />
+        </div>
+        <p {...stylex.props(styles.eyebrow)}>{t.authEyebrow}</p>
+        <h1 {...stylex.props(styles.title)}>{t.authTitle}</h1>
+        <p {...stylex.props(styles.copy)}>{t.authCopy}</p>
         <a
           {...stylex.props(styles.button)}
           href={`/api/auth/sign-in?returnPathname=${view === 'today' ? '/' : `/${view}`}`}
         >
-          Continue with Google
+          {t.continueWithGoogle}
         </a>
       </div>
     </main>

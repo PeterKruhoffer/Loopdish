@@ -2,7 +2,9 @@ import * as stylex from '@stylexjs/stylex'
 import { Link, useRouterState } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 import { CalendarIcon, HeartIcon, HomeIcon, SunIcon } from '~/components/ui/Icon'
+import { LanguageSelect } from '~/components/ui/LanguageSelect'
 import { Logo } from '~/components/ui/Logo'
+import { useI18n } from '~/lib/i18n'
 import { colors } from '../../components/ui/theme.stylex'
 
 const display = 'Manrope, system-ui, sans-serif'
@@ -19,6 +21,7 @@ const styles = stylex.create({
     justifyContent: 'space-between',
     [tablet]: { minHeight: 92 },
   },
+  headerActions: { display: 'flex', alignItems: 'center', gap: 10 },
   account: {
     appearance: 'none',
     display: 'inline-flex',
@@ -115,33 +118,40 @@ export function AppHeader({
   email?: string | null
   onSignOut: () => void
 }) {
+  const { t } = useI18n()
   return (
     <header {...stylex.props(styles.topbar)}>
       <Logo />
-      <button
-        {...stylex.props(styles.account)}
-        aria-label="Sign out"
-        title="Sign out"
-        onClick={onSignOut}
-      >
-        <span {...stylex.props(styles.avatar)} aria-hidden="true">
-          {(name || email || 'M').slice(0, 1).toUpperCase()}
-        </span>
-        <span {...stylex.props(styles.signOutLabel)}>Sign out</span>
-      </button>
+      <div {...stylex.props(styles.headerActions)}>
+        <LanguageSelect />
+        <button
+          {...stylex.props(styles.account)}
+          aria-label={t.signOut}
+          title={t.signOut}
+          onClick={onSignOut}
+        >
+          <span {...stylex.props(styles.avatar)} aria-hidden="true">
+            {(name || email || 'M').slice(0, 1).toUpperCase()}
+          </span>
+          <span {...stylex.props(styles.signOutLabel)}>{t.signOut}</span>
+        </button>
+      </div>
     </header>
   )
 }
 
 export function Hero({ name }: { name?: string | null }) {
+  const { t } = useI18n()
   return (
     <section {...stylex.props(styles.hero)} id="today">
       <span {...stylex.props(styles.sun)} aria-hidden="true">
         <SunIcon />
       </span>
-      <p {...stylex.props(styles.greeting)}>Hey {name || 'there'},</p>
-      <h1 {...stylex.props(styles.heroTitle)}>What's for dinner?</h1>
-      <p {...stylex.props(styles.heroCopy)}>A loose plan is still a plan.</p>
+      <p {...stylex.props(styles.greeting)}>
+        {t.greeting} {name || t.greetingFallback},
+      </p>
+      <h1 {...stylex.props(styles.heroTitle)}>{t.heroTitle}</h1>
+      <p {...stylex.props(styles.heroCopy)}>{t.heroCopy}</p>
     </section>
   )
 }
@@ -159,16 +169,17 @@ function NavItem({ to, children }: { to: '/' | '/week' | '/dishes'; children: Re
 }
 
 export function BottomNav() {
+  const { t } = useI18n()
   return (
-    <nav {...stylex.props(styles.nav)} aria-label="Main navigation">
+    <nav {...stylex.props(styles.nav)} aria-label={t.mainNavigation}>
       <NavItem to="/">
-        <HomeIcon /> <span>Today</span>
+        <HomeIcon /> <span>{t.today}</span>
       </NavItem>
       <NavItem to="/week">
-        <CalendarIcon /> <span>Week</span>
+        <CalendarIcon /> <span>{t.week}</span>
       </NavItem>
       <NavItem to="/dishes">
-        <HeartIcon /> <span>Dishes</span>
+        <HeartIcon /> <span>{t.dishes}</span>
       </NavItem>
     </nav>
   )

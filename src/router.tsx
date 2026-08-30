@@ -9,6 +9,7 @@ import {
 } from '@workos/authkit-tanstack-react-start/client'
 import { ConvexProviderWithAuth, ConvexReactClient } from 'convex/react'
 import { useCallback, useMemo, type ReactNode } from 'react'
+import { LanguageProvider, useI18n } from './lib/i18n'
 import { routeTree } from './routeTree.gen'
 
 export function getRouter() {
@@ -41,13 +42,20 @@ export function getRouter() {
       defaultPreload: 'intent',
       context: { queryClient, convexQueryClient },
       scrollRestoration: true,
-      defaultNotFoundComponent: () => <p>That page does not exist.</p>,
+      defaultNotFoundComponent: NotFound,
       InnerWrap: ({ children }) => (
-        <AppProviders convexQueryClient={convexQueryClient}>{children}</AppProviders>
+        <LanguageProvider>
+          <AppProviders convexQueryClient={convexQueryClient}>{children}</AppProviders>
+        </LanguageProvider>
       ),
     }),
     queryClient,
   )
+}
+
+function NotFound() {
+  const { t } = useI18n()
+  return <p>{t.pageNotFound}</p>
 }
 
 function AppProviders({
