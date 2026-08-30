@@ -18,35 +18,41 @@ const styles = stylex.create({
     justifyContent: 'space-between',
     [tablet]: { minHeight: 92 },
   },
-  account: { display: 'flex', alignItems: 'center', gap: 10 },
+  account: {
+    appearance: 'none',
+    display: 'inline-flex',
+    minHeight: 42,
+    alignItems: 'center',
+    gap: 9,
+    padding: '5px 13px 5px 6px',
+    border: `1px solid ${colors.line}`,
+    borderRadius: 999,
+    color: colors.ink,
+    backgroundColor: 'rgb(255 254 249 / 78%)',
+    boxShadow: '0 4px 14px rgb(73 58 39 / 6%)',
+    fontSize: 12,
+    fontWeight: 700,
+    transition: 'border-color 160ms ease, background-color 160ms ease, transform 160ms ease',
+    [mobile]: { width: 42, padding: 5 },
+    ':hover': {
+      borderColor: colors.coralSoft,
+      backgroundColor: colors.white,
+      transform: 'translateY(-1px)',
+    },
+  },
   avatar: {
     display: 'grid',
-    width: 34,
-    height: 34,
+    width: 30,
+    height: 30,
+    flexShrink: 0,
     placeItems: 'center',
-    border: 0,
     borderRadius: '50%',
     color: '#fff',
     backgroundColor: colors.green,
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: 800,
   },
-  signOut: {
-    padding: 0,
-    border: 0,
-    color: colors.muted,
-    backgroundColor: 'transparent',
-    fontSize: 11,
-    fontWeight: 700,
-    [mobile]: {
-      position: 'absolute',
-      width: 1,
-      height: 1,
-      overflow: 'hidden',
-      clip: 'rect(0 0 0 0)',
-    },
-    ':hover': { color: colors.coral },
-  },
+  signOutLabel: { [mobile]: { display: 'none' } },
   hero: {
     position: 'relative',
     padding: '38px 0 36px',
@@ -110,19 +116,17 @@ export function AppHeader({
   return (
     <header {...stylex.props(styles.topbar)}>
       <Logo />
-      <div {...stylex.props(styles.account)}>
-        <button
-          {...stylex.props(styles.avatar)}
-          aria-label="Sign out"
-          title="Sign out"
-          onClick={onSignOut}
-        >
+      <button
+        {...stylex.props(styles.account)}
+        aria-label="Sign out"
+        title="Sign out"
+        onClick={onSignOut}
+      >
+        <span {...stylex.props(styles.avatar)} aria-hidden="true">
           {(name || email || 'M').slice(0, 1).toUpperCase()}
-        </button>
-        <button {...stylex.props(styles.signOut)} onClick={onSignOut}>
-          Sign out
-        </button>
-      </div>
+        </span>
+        <span {...stylex.props(styles.signOutLabel)}>Sign out</span>
+      </button>
     </header>
   )
 }
