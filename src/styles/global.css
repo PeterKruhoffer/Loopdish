@@ -19,22 +19,27 @@
 
 @layer base {
   :root {
-    color: #25241f;
-    background: #f7f3ea;
+    color: #26352f;
+    background: #fff9e9;
     font-family: 'DM Sans', system-ui, sans-serif;
     font-synthesis: none;
+    scroll-behavior: smooth;
   }
 
   html {
     min-width: 320px;
-    background: #f7f3ea;
+    background: #fff9e9;
+    overscroll-behavior: none;
   }
 
   body {
     min-width: 320px;
     min-height: 100vh;
     margin: 0;
-    background: radial-gradient(circle at 85% 4%, rgb(232 99 46 / 8%), transparent 25rem), #f7f3ea;
+    overflow-x: hidden;
+    overscroll-behavior: none;
+    background:
+      radial-gradient(circle at 92% 2%, rgb(251 217 118 / 52%), transparent 24rem), #fff9e9;
   }
 
   button,
@@ -45,7 +50,8 @@
   }
 
   button,
-  select {
+  select,
+  summary {
     cursor: pointer;
   }
 
@@ -56,14 +62,16 @@
 
   button:focus-visible,
   input:focus-visible,
-  select:focus-visible {
-    outline: 3px solid rgb(232 99 46 / 28%);
-    outline-offset: 2px;
+  select:focus-visible,
+  summary:focus-visible,
+  a:focus-visible {
+    outline: 3px solid rgb(239 99 73 / 30%);
+    outline-offset: 3px;
   }
 
   code {
     padding: 2px 5px;
-    border-radius: 4px;
+    border-radius: 5px;
     color: #7c311a;
     background: #f7dfcf;
     font-size: 0.9em;

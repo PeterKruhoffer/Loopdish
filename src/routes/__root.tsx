@@ -16,7 +16,7 @@ export const Route = createRootRouteWithContext<{
         name: 'viewport',
         content: 'width=device-width, initial-scale=1, viewport-fit=cover',
       },
-      { name: 'theme-color', content: '#f7f3ea' },
+      { name: 'theme-color', content: '#fff9e9' },
       {
         name: 'description',
         content: 'Remember what you ate and plan what comes next.',

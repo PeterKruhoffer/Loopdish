@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 import { useAuth } from '@workos/authkit-tanstack-react-start/client'
 import { useMutation } from 'convex/react'
-import { useMemo, useState, type FormEvent } from 'react'
+import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { api } from '../../convex/_generated/api'
 import type { Id } from '../../convex/_generated/dataModel'
 import { styles } from '../styles/loopdish.stylex'
@@ -60,8 +60,6 @@ function errorMessage(error: unknown) {
 }
 
 function Home() {
-  const convexUrl = import.meta.env.VITE_CONVEX_URL as string | undefined
-  if (!convexUrl) return <SetupRequired />
   return <AuthenticatedHome />
 }
 
@@ -98,22 +96,6 @@ function SignInRequired() {
   )
 }
 
-function SetupRequired() {
-  return (
-    <main {...stylex.props(styles.setupShell)}>
-      <div {...stylex.props(styles.setupCard)}>
-        <Logo />
-        <p {...stylex.props(styles.eyebrow, styles.setupEyebrow)}>One setup step left</p>
-        <h1 {...stylex.props(styles.setupTitle)}>Connect LoopDish to Convex.</h1>
-        <p {...stylex.props(styles.setupCopy)}>
-          Run <code>pnpm dev</code> and complete the Convex project prompt. The CLI will create{' '}
-          <code>.env.local</code> and reload this page.
-        </p>
-      </div>
-    </main>
-  )
-}
-
 function ConnectedHome() {
   const { signOut, user } = useAuth()
   const week = useMemo(makeWeek, [])
@@ -139,6 +121,8 @@ function ConnectedHome() {
 
   const data = dashboardQuery.data
   const activeDishId = selectedDishId || data?.dishes[0]?._id || ''
+  const selectedDay = week.find((day) => day.date === selectedDate) ?? week[0]
+  const selectedPlan = data?.plannedMeals.find((meal) => meal.date === selectedDate)
 
   async function run(action: () => Promise<unknown>, success: string) {
     setBusy(true)
@@ -183,9 +167,15 @@ function ConnectedHome() {
     <div {...stylex.props(styles.appShell)}>
       <header {...stylex.props(styles.topbar)}>
         <Logo />
-        <div {...stylex.props(styles.homeChip)}>
-          <span {...stylex.props(styles.homeDot)} />
-          <span>{user?.firstName || user?.email}</span>
+        <div {...stylex.props(styles.account)}>
+          <button
+            {...stylex.props(styles.avatar)}
+            aria-label="Sign out"
+            title="Sign out"
+            onClick={() => void signOut()}
+          >
+            {(user?.firstName || user?.email || 'M').slice(0, 1).toUpperCase()}
+          </button>
           <button
             {...stylex.props(styles.bareButton, styles.signOutButton)}
             onClick={() => void signOut()}
@@ -196,14 +186,13 @@ function ConnectedHome() {
       </header>
 
       <main>
-        <section {...stylex.props(styles.hero)}>
-          <div>
-            <p {...stylex.props(styles.eyebrow)}>Dinner, sorted</p>
-            <h1 {...stylex.props(styles.heroTitle)}>What are we eating this week?</h1>
-          </div>
-          <p {...stylex.props(styles.heroCopy)}>
-            Plan the week, remember the good ones, and stop having the same conversation at 5:30.
-          </p>
+        <section {...stylex.props(styles.hero)} id="today">
+          <span {...stylex.props(styles.sunDoodle)} aria-hidden="true">
+            <Sun />
+          </span>
+          <p {...stylex.props(styles.greeting)}>Hey {user?.firstName || 'there'},</p>
+          <h1 {...stylex.props(styles.heroTitle)}>What's for dinner?</h1>
+          <p {...stylex.props(styles.heroCopy)}>A loose plan is still a plan.</p>
         </section>
 
         {message ? (
@@ -212,137 +201,197 @@ function ConnectedHome() {
           </p>
         ) : null}
 
-        <section aria-labelledby="week-heading">
+        <section {...stylex.props(styles.weekSection)} aria-labelledby="week-heading" id="week">
           <div {...stylex.props(styles.sectionHeading)}>
-            <div>
-              <p {...stylex.props(styles.eyebrow)}>Plan</p>
-              <h2 {...stylex.props(styles.sectionTitle)} id="week-heading">
-                This week
-              </h2>
-            </div>
+            <h2 {...stylex.props(styles.sectionTitle)} id="week-heading">
+              This week
+            </h2>
             <span {...stylex.props(styles.sectionMeta)}>
-              {week[0].month} {week[0].dayNumber} – {week[6].month} {week[6].dayNumber}
+              {week[0].month} {week[0].dayNumber}–{week[6].month} {week[6].dayNumber}
             </span>
           </div>
 
-          <div {...stylex.props(styles.weekGrid)}>
+          <div {...stylex.props(styles.dayPills)}>
             {week.map((day) => {
-              const plan = data?.plannedMeals.find((meal) => meal.date === day.date)
+              const hasPlan = data?.plannedMeals.some((meal) => meal.date === day.date)
+              const isSelected = day.date === selectedDate
               return (
-                <article
-                  {...stylex.props(
-                    styles.dayCard,
-                    day.isToday && styles.today,
-                    plan && styles.planned,
-                  )}
+                <button
+                  {...stylex.props(styles.dayPill, isSelected && styles.dayPillActive)}
                   key={day.date}
+                  onClick={() => setSelectedDate(day.date)}
+                  aria-pressed={isSelected}
+                  aria-label={`${day.weekday}, ${day.month} ${day.dayNumber}`}
                 >
-                  <div {...stylex.props(styles.dayDate)}>
-                    <span {...stylex.props(styles.weekday)}>{day.weekday}</span>
-                    <strong {...stylex.props(styles.dayNumber)}>{day.dayNumber}</strong>
-                  </div>
-                  {plan ? (
-                    <div {...stylex.props(styles.mealContent)}>
-                      <p {...stylex.props(styles.mealName)}>{plan.dishName}</p>
-                      {plan.completedAt ? (
-                        <span {...stylex.props(styles.eatenLabel)}>Eaten</span>
-                      ) : (
-                        <div {...stylex.props(styles.mealActions)}>
-                          <button
-                            {...stylex.props(styles.bareButton, styles.textButton)}
-                            disabled={busy}
-                            onClick={() =>
-                              void run(
-                                () => markEaten({ planId: plan._id }),
-                                'Added to dinner history.',
-                              )
-                            }
-                          >
-                            We ate this
-                          </button>
-                          <button
-                            {...stylex.props(styles.bareButton, styles.iconButton)}
-                            aria-label={`Remove ${plan.dishName} from ${day.weekday}`}
-                            disabled={busy}
-                            onClick={() =>
-                              void run(() => removePlan({ planId: plan._id }), 'Plan removed.')
-                            }
-                          >
-                            ×
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <button
-                      {...stylex.props(styles.bareButton, styles.emptyMeal)}
-                      onClick={() => setSelectedDate(day.date)}
-                    >
-                      <span {...stylex.props(styles.plus)}>+</span> Add dinner
-                    </button>
-                  )}
-                </article>
+                  <span {...stylex.props(styles.dayLetter)}>{day.weekday.slice(0, 1)}</span>
+                  <strong {...stylex.props(styles.dayNumber, isSelected && styles.dayNumberActive)}>
+                    {day.dayNumber}
+                  </strong>
+                  {hasPlan ? <i {...stylex.props(styles.planDot)} /> : null}
+                </button>
               )
             })}
           </div>
+
+          <article {...stylex.props(styles.dinnerCard, !selectedPlan && styles.emptyDinnerCard)}>
+            <div {...stylex.props(styles.cardTopline)}>
+              <span>
+                {selectedDay.weekday}, {selectedDay.month} {selectedDay.dayNumber}
+              </span>
+              {selectedDay.isToday ? <span {...stylex.props(styles.todayLabel)}>Today</span> : null}
+            </div>
+            {selectedPlan ? (
+              <>
+                <div {...stylex.props(styles.foodDoodle)} aria-hidden="true">
+                  <NoodleBowl />
+                </div>
+                <h3 {...stylex.props(styles.dinnerName)}>{selectedPlan.dishName}</h3>
+                {selectedPlan.completedAt ? (
+                  <span {...stylex.props(styles.eatenLabel)}>
+                    <Check /> Added to history
+                  </span>
+                ) : (
+                  <div {...stylex.props(styles.cardActions)}>
+                    <button
+                      {...stylex.props(styles.ateButton)}
+                      disabled={busy}
+                      onClick={() =>
+                        void run(
+                          () => markEaten({ planId: selectedPlan._id }),
+                          'Added to dinner history.',
+                        )
+                      }
+                    >
+                      <Check /> We ate this
+                    </button>
+                    <button
+                      {...stylex.props(styles.removeButton)}
+                      aria-label={`Remove ${selectedPlan.dishName} from ${selectedDay.weekday}`}
+                      disabled={busy}
+                      onClick={() =>
+                        void run(() => removePlan({ planId: selectedPlan._id }), 'Plan removed.')
+                      }
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div {...stylex.props(styles.emptyDinner)}>
+                <span {...stylex.props(styles.emptyPlate)} aria-hidden="true">
+                  <Plus />
+                </span>
+                <h3 {...stylex.props(styles.emptyTitle)}>Nothing planned</h3>
+                <p {...stylex.props(styles.emptyCardCopy)}>Maybe that's exactly right.</p>
+                <a {...stylex.props(styles.pickDinnerButton)} href="#plan-dinner">
+                  Pick a dinner
+                </a>
+              </div>
+            )}
+          </article>
         </section>
 
-        <div {...stylex.props(styles.contentGrid)}>
-          <section {...stylex.props(styles.panel, styles.planPanel)} aria-labelledby="plan-heading">
-            <p {...stylex.props(styles.eyebrow, styles.eyebrowLight)}>Pick from your dishes</p>
-            <h2 {...stylex.props(styles.sectionTitle)} id="plan-heading">
-              Plan a dinner
-            </h2>
-            {data?.dishes.length ? (
-              <form {...stylex.props(styles.stackedForm)} onSubmit={handlePlan}>
-                <label {...stylex.props(styles.formLabel)}>
-                  Dish
-                  <select
-                    {...stylex.props(styles.field, styles.planSelect)}
-                    value={activeDishId}
-                    onChange={(event) => setSelectedDishId(event.target.value)}
-                  >
-                    {data.dishes.map((dish) => (
-                      <option value={dish._id} key={dish._id}>
-                        {dish.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label {...stylex.props(styles.formLabel)}>
-                  Day
-                  <select
-                    {...stylex.props(styles.field, styles.planSelect)}
-                    value={selectedDate}
-                    onChange={(event) => setSelectedDate(event.target.value)}
-                  >
-                    {week.map((day) => (
-                      <option value={day.date} key={day.date}>
-                        {day.weekday}, {day.month} {day.dayNumber}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <button
-                  {...stylex.props(styles.actionButton, styles.primaryButton)}
-                  disabled={busy}
+        <section
+          {...stylex.props(styles.panel, styles.planPanel)}
+          aria-labelledby="plan-heading"
+          id="plan-dinner"
+        >
+          <div {...stylex.props(styles.panelHeading)}>
+            <span {...stylex.props(styles.panelIcon)} aria-hidden="true">
+              <Plus />
+            </span>
+            <div>
+              <p {...stylex.props(styles.eyebrow, styles.eyebrowLight)}>Pick from your dishes</p>
+              <h2 {...stylex.props(styles.sectionTitle)} id="plan-heading">
+                Plan a dinner
+              </h2>
+            </div>
+          </div>
+          {data?.dishes.length ? (
+            <form {...stylex.props(styles.stackedForm)} onSubmit={handlePlan}>
+              <label {...stylex.props(styles.formLabel)}>
+                Dish
+                <select
+                  {...stylex.props(styles.field, styles.planSelect)}
+                  value={activeDishId}
+                  onChange={(event) => setSelectedDishId(event.target.value)}
                 >
-                  Add to the week
-                </button>
-              </form>
-            ) : (
-              <p {...stylex.props(styles.emptyCopy)}>
-                Add your first dish, then you can put it on the calendar.
-              </p>
-            )}
-          </section>
+                  {data.dishes.map((dish) => (
+                    <option value={dish._id} key={dish._id}>
+                      {dish.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label {...stylex.props(styles.formLabel)}>
+                Day
+                <select
+                  {...stylex.props(styles.field, styles.planSelect)}
+                  value={selectedDate}
+                  onChange={(event) => setSelectedDate(event.target.value)}
+                >
+                  {week.map((day) => (
+                    <option value={day.date} key={day.date}>
+                      {day.weekday}, {day.month} {day.dayNumber}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button {...stylex.props(styles.actionButton, styles.primaryButton)} disabled={busy}>
+                Add to the week
+              </button>
+            </form>
+          ) : (
+            <p {...stylex.props(styles.emptyCopy)}>
+              Add your first dish, then you can put it on the calendar.
+            </p>
+          )}
+        </section>
 
-          <section {...stylex.props(styles.panel)} aria-labelledby="dish-heading">
-            <p {...stylex.props(styles.eyebrow)}>Build your rotation</p>
-            <h2 {...stylex.props(styles.sectionTitle)} id="dish-heading">
-              Add a dish
+        <section
+          {...stylex.props(styles.dishesSection)}
+          aria-labelledby="dishes-heading"
+          id="dishes"
+        >
+          <div {...stylex.props(styles.sectionHeading)}>
+            <h2 {...stylex.props(styles.sectionTitle)} id="dishes-heading">
+              Your dishes
             </h2>
-            <form {...stylex.props(styles.stackedForm)} onSubmit={handleAddDish}>
+            <span {...stylex.props(styles.sectionMeta)}>{data?.dishes.length ?? 0} saved</span>
+          </div>
+
+          <div {...stylex.props(styles.dishCards)}>
+            {data?.dishes.map((dish, index) => (
+              <article
+                {...stylex.props(styles.dishCard, index % 2 === 1 && styles.dishCardAlt)}
+                key={dish._id}
+              >
+                <span {...stylex.props(styles.miniPlate)} aria-hidden="true">
+                  <PlateMark />
+                </span>
+                <h3 {...stylex.props(styles.dishTitle)}>{dish.name}</h3>
+                {dish.notes ? <p {...stylex.props(styles.dishNotes)}>{dish.notes}</p> : null}
+                <p {...stylex.props(styles.dishStat)}>
+                  {dish.lastEatenOn
+                    ? `Last had ${friendlyDate(dish.lastEatenOn)}`
+                    : 'Not tried yet'}
+                </p>
+              </article>
+            ))}
+          </div>
+
+          {data && data.dishes.length === 0 ? (
+            <p {...stylex.props(styles.emptyCopy)}>
+              Spaghetti, tacos, takeout. Start with the dinners already in your rotation.
+            </p>
+          ) : null}
+
+          <details {...stylex.props(styles.addDishDisclosure)}>
+            <summary {...stylex.props(styles.addDishSummary)}>
+              <Plus /> Add a new dish
+            </summary>
+            <form {...stylex.props(styles.addDishForm)} onSubmit={handleAddDish}>
               <label {...stylex.props(styles.formLabel)}>
                 What do you call it?
                 <input
@@ -371,69 +420,45 @@ function ConnectedHome() {
                 Save dish
               </button>
             </form>
-          </section>
-        </div>
+          </details>
+        </section>
 
-        <div {...stylex.props(styles.contentGrid, styles.lowerGrid)}>
-          <section aria-labelledby="dishes-heading">
-            <div {...stylex.props(styles.sectionHeading, styles.compactHeading)}>
-              <div>
-                <p {...stylex.props(styles.eyebrow)}>Your rotation</p>
-                <h2 {...stylex.props(styles.sectionTitle)} id="dishes-heading">
-                  Dishes
-                </h2>
+        <section {...stylex.props(styles.historySection)} aria-labelledby="history-heading">
+          <div {...stylex.props(styles.sectionHeading)}>
+            <h2 {...stylex.props(styles.sectionTitle)} id="history-heading">
+              Recently eaten
+            </h2>
+          </div>
+          <div {...stylex.props(styles.historyList)}>
+            {data?.recentMeals.map((meal) => (
+              <div {...stylex.props(styles.historyRow)} key={meal._id}>
+                <span {...stylex.props(styles.historyMark)}>
+                  <Check />
+                </span>
+                <strong {...stylex.props(styles.historyName)}>{meal.dishName}</strong>
+                <span {...stylex.props(styles.historyDate)}>{friendlyDate(meal.eatenOn)}</span>
               </div>
-              <span {...stylex.props(styles.sectionMeta)}>{data?.dishes.length ?? 0} saved</span>
-            </div>
-            <div {...stylex.props(styles.list)}>
-              {data?.dishes.map((dish) => (
-                <article {...stylex.props(styles.dishRow)} key={dish._id}>
-                  <div>
-                    <h3 {...stylex.props(styles.dishTitle)}>{dish.name}</h3>
-                    {dish.notes ? <p {...stylex.props(styles.dishNotes)}>{dish.notes}</p> : null}
-                  </div>
-                  <p {...stylex.props(styles.dishStat)}>
-                    {dish.lastEatenOn
-                      ? `Last had ${friendlyDate(dish.lastEatenOn)}`
-                      : 'Not logged yet'}
-                  </p>
-                </article>
-              ))}
-              {data && data.dishes.length === 0 ? (
-                <p {...stylex.props(styles.emptyCopy, styles.listEmpty)}>
-                  Spaghetti, tacos, takeout. Start with the dinners already in your regular
-                  rotation.
-                </p>
-              ) : null}
-            </div>
-          </section>
-
-          <section aria-labelledby="history-heading">
-            <div {...stylex.props(styles.sectionHeading, styles.compactHeading)}>
-              <div>
-                <p {...stylex.props(styles.eyebrow)}>Memory</p>
-                <h2 {...stylex.props(styles.sectionTitle)} id="history-heading">
-                  Recently eaten
-                </h2>
-              </div>
-            </div>
-            <div {...stylex.props(styles.list)}>
-              {data?.recentMeals.map((meal) => (
-                <div {...stylex.props(styles.historyRow)} key={meal._id}>
-                  <span {...stylex.props(styles.historyMark)} />
-                  <strong {...stylex.props(styles.historyName)}>{meal.dishName}</strong>
-                  <span {...stylex.props(styles.historyDate)}>{friendlyDate(meal.eatenOn)}</span>
-                </div>
-              ))}
-              {data && data.recentMeals.length === 0 ? (
-                <p {...stylex.props(styles.emptyCopy, styles.listEmpty)}>
-                  Completed dinners will show up here.
-                </p>
-              ) : null}
-            </div>
-          </section>
-        </div>
+            ))}
+            {data && data.recentMeals.length === 0 ? (
+              <p {...stylex.props(styles.emptyCopy, styles.historyEmpty)}>
+                Completed dinners will show up here.
+              </p>
+            ) : null}
+          </div>
+        </section>
       </main>
+
+      <nav {...stylex.props(styles.bottomNav)} aria-label="Main navigation">
+        <a {...stylex.props(styles.navItem)} href="#today">
+          <HomeIcon /> <span>Today</span>
+        </a>
+        <a {...stylex.props(styles.navItem)} href="#week">
+          <Calendar /> <span>Week</span>
+        </a>
+        <a {...stylex.props(styles.navItem)} href="#dishes">
+          <Heart /> <span>Dishes</span>
+        </a>
+      </nav>
     </div>
   )
 }
@@ -442,9 +467,94 @@ function Logo() {
   return (
     <div {...stylex.props(styles.logo)} aria-label="LoopDish">
       <span {...stylex.props(styles.logoMark)} aria-hidden="true">
-        <span {...stylex.props(styles.logoMarkCenter)} />
+        <PlateMark />
       </span>
       <span>LoopDish</span>
     </div>
+  )
+}
+
+function Icon({ children, fill = false }: { children: ReactNode; fill?: boolean }) {
+  return (
+    <svg
+      {...stylex.props(styles.icon, fill && styles.iconFill)}
+      viewBox="0 0 24 24"
+      aria-hidden="true"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {children}
+    </svg>
+  )
+}
+
+function Calendar() {
+  return (
+    <Icon>
+      <rect x="3" y="5" width="18" height="16" rx="3" />
+      <path d="M8 3v4M16 3v4M3 10h18" />
+    </Icon>
+  )
+}
+
+function Check() {
+  return (
+    <Icon>
+      <path d="m5 12 4 4L19 6" />
+    </Icon>
+  )
+}
+
+function Heart() {
+  return (
+    <Icon>
+      <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8Z" />
+    </Icon>
+  )
+}
+
+function HomeIcon() {
+  return (
+    <Icon>
+      <path d="m3 11 9-8 9 8v9H7v-6h10v6" />
+    </Icon>
+  )
+}
+
+function NoodleBowl() {
+  return (
+    <Icon fill>
+      <path d="M4 10h16c0 6-3 9-8 9s-8-3-8-9Z" />
+      <path d="M7 6c0-2 2-2 2-4M12 6c0-2 2-2 2-4M17 6c0-2 2-2 2-4M8 22h8" />
+    </Icon>
+  )
+}
+
+function PlateMark() {
+  return (
+    <Icon fill>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M8 7v10M16 7v10M8 12h8" />
+    </Icon>
+  )
+}
+
+function Plus() {
+  return (
+    <Icon>
+      <path d="M12 5v14M5 12h14" />
+    </Icon>
+  )
+}
+
+function Sun() {
+  return (
+    <Icon fill>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+    </Icon>
   )
 }
