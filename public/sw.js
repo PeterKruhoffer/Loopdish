@@ -1,7 +1,6 @@
-const CACHE_NAME = 'loopdish-shell-v1'
+const CACHE_NAME = 'loopdish-shell-v2'
 const STATIC_ASSETS = [
   '/',
-  '/icon.svg',
   '/icon-192.png',
   '/icon-512.png',
   '/apple-touch-icon.png',
