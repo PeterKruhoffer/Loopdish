@@ -28,7 +28,7 @@
 
   html {
     min-width: 320px;
-    overflow-x: hidden;
+    overflow-x: clip;
     background: #fff9e9;
     overscroll-behavior: none;
   }
@@ -37,7 +37,7 @@
     min-width: 320px;
     min-height: 100vh;
     margin: 0;
-    overflow-x: hidden;
+    overflow-x: clip;
     overscroll-behavior: none;
     background:
       radial-gradient(circle at 92% 2%, rgb(251 217 118 / 52%), transparent 24rem), #fff9e9;
