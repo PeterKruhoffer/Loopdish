@@ -1,14 +1,7 @@
 import * as stylex from '@stylexjs/stylex'
 import { Link } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
-import {
-  CalendarIcon,
-  HeartIcon,
-  HomeIcon,
-  SparklesIcon,
-  SunIcon,
-  UsersIcon,
-} from '~/components/ui/Icon'
+import { CalendarIcon, HeartIcon, HomeIcon, SunIcon, UsersIcon } from '~/components/ui/Icon'
 import { LanguageSelect } from '~/components/ui/LanguageSelect'
 import { Logo } from '~/components/ui/Logo'
 import { useI18n } from '~/lib/i18n'
@@ -98,7 +91,7 @@ const styles = stylex.create({
     left: 0,
     display: 'grid',
     height: 78,
-    gridTemplateColumns: 'repeat(5, 1fr)',
+    gridTemplateColumns: 'repeat(4, 1fr)',
     padding: '10px 18px max(12px, env(safe-area-inset-bottom))',
     borderTop: `1px solid ${colors.line}`,
     backgroundColor: 'rgb(255 254 249 / 94%)',
@@ -169,7 +162,7 @@ function NavItem({
   active,
   children,
 }: {
-  to: '/' | '/week' | '/dishes' | '/suggestions' | '/household'
+  to: '/' | '/week' | '/dishes' | '/household'
   active: boolean
   children: ReactNode
 }) {
@@ -183,7 +176,7 @@ function NavItem({
 export function BottomNav({
   activeView,
 }: {
-  activeView: 'today' | 'week' | 'dishes' | 'suggestions' | 'household'
+  activeView: 'today' | 'week' | 'dishes' | 'household'
 }) {
   const { t } = useI18n()
   return (
@@ -196,9 +189,6 @@ export function BottomNav({
       </NavItem>
       <NavItem to="/dishes" active={activeView === 'dishes'}>
         <HeartIcon /> <span>{t.dishes}</span>
-      </NavItem>
-      <NavItem to="/suggestions" active={activeView === 'suggestions'}>
-        <SparklesIcon /> <span>{t.suggestions}</span>
       </NavItem>
       <NavItem to="/household" active={activeView === 'household'}>
         <UsersIcon /> <span>{t.household}</span>

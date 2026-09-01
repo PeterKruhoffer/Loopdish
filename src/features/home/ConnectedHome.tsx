@@ -10,11 +10,11 @@ import {
   useSyncExternalStore,
   useTransition,
 } from 'react'
-import { CalendarIcon, HeartIcon, SparklesIcon } from '~/components/ui/Icon'
+import { CalendarIcon, HeartIcon } from '~/components/ui/Icon'
 import { Dishes } from '~/features/dishes/Dishes'
 import { History } from '~/features/history/History'
 import { Household } from '~/features/household/Household'
-import { Suggestions } from '~/features/suggestions/Suggestions'
+import { DishSuggestions, WeekSuggestions } from '~/features/suggestions/Suggestions'
 import { PlanDinner } from '~/features/week/PlanDinner'
 import { WeekPlanner } from '~/features/week/WeekPlanner'
 import { localDateKey, makeWeek } from '~/lib/dates'
@@ -27,7 +27,7 @@ import { dinnerDashboardQueryOptions, useDinnerDashboard } from './useDinnerDash
 const tablet = '@media (min-width: 720px)'
 const display = 'Manrope, system-ui, sans-serif'
 
-export type AppView = 'today' | 'week' | 'dishes' | 'suggestions' | 'household'
+export type AppView = 'today' | 'week' | 'dishes' | 'household'
 
 const styles = stylex.create({
   shell: {
@@ -72,7 +72,7 @@ const styles = stylex.create({
     display: 'grid',
     gap: 10,
     marginTop: 20,
-    [tablet]: { gridTemplateColumns: 'repeat(3, 1fr)' },
+    [tablet]: { gridTemplateColumns: 'repeat(2, 1fr)' },
   },
   firstRunAction: {
     display: 'grid',
@@ -139,15 +139,6 @@ function FirstRunGuide() {
             <span {...stylex.props(styles.firstRunActionCopy)}>{t.firstRunWeekCopy}</span>
           </span>
         </Link>
-        <Link {...stylex.props(styles.firstRunAction)} to="/suggestions">
-          <span {...stylex.props(styles.firstRunIcon)}>
-            <SparklesIcon />
-          </span>
-          <span>
-            <strong {...stylex.props(styles.firstRunActionTitle)}>{t.aiSuggestions}</strong>
-            <span {...stylex.props(styles.firstRunActionCopy)}>{t.suggestNewDishesCopy}</span>
-          </span>
-        </Link>
       </div>
     </section>
   )
@@ -204,10 +195,6 @@ export function ConnectedHome({ view }: { view: AppView }) {
     () => makeWeek(language, weekOffset, new Date(`${localDay}T12:00:00`)),
     [language, localDay, weekOffset],
   )
-  const suggestionWeek = useMemo(
-    () => makeWeek(language, 1, new Date(`${localDay}T12:00:00`)),
-    [language, localDay],
-  )
   const dashboard = useDinnerDashboard(week)
   const data = dashboard.data
 
@@ -256,15 +243,20 @@ export function ConnectedHome({ view }: { view: AppView }) {
               onRetry={dashboard.retryDashboard}
             />
             {!dashboard.isPending && !dashboard.queryError && (
-              <PlanDinner
-                dishes={data?.dishes ?? []}
-                week={week}
-                selectedDishId={dashboard.selectedDishId}
-                selectedDate={dashboard.selectedDate}
-                onSelectDish={dashboard.setSelectedDishId}
-                onSelectDate={dashboard.setSelectedDate}
-                planDinnerAction={dashboard.planDinnerAction}
-              />
+              <>
+                <PlanDinner
+                  dishes={data?.dishes ?? []}
+                  week={week}
+                  selectedDishId={dashboard.selectedDishId}
+                  selectedDate={dashboard.selectedDate}
+                  onSelectDish={dashboard.setSelectedDishId}
+                  onSelectDate={dashboard.setSelectedDate}
+                  planDinnerAction={dashboard.planDinnerAction}
+                />
+                {(data?.dishes.length ?? 0) > 0 && (
+                  <WeekSuggestions key={week[0].date} week={week} />
+                )}
+              </>
             )}
           </>
         ) : view === 'dishes' ? (
@@ -275,6 +267,9 @@ export function ConnectedHome({ view }: { view: AppView }) {
           ) : (
             <>
               <Dishes dishes={data?.dishes ?? []} addDishAction={dashboard.addDishAction} />
+              {(data?.dishes.length ?? 0) > 0 && (
+                <DishSuggestions week={week} addDishAction={dashboard.addDishAction} />
+              )}
               <History meals={data?.recentMeals ?? []} />
             </>
           )
@@ -284,8 +279,6 @@ export function ConnectedHome({ view }: { view: AppView }) {
               await signOut()
             }}
           />
-        ) : view === 'suggestions' ? (
-          <Suggestions week={suggestionWeek} addDishAction={dashboard.addDishAction} />
         ) : null}
       </main>
       <BottomNav activeView={view} />

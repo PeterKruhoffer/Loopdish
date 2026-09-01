@@ -1,29 +1,20 @@
 import * as stylex from '@stylexjs/stylex'
 import { useAction, useMutation } from 'convex/react'
-import { startTransition, useActionState, useOptimistic } from 'react'
+import { startTransition, useActionState, useOptimistic, type ReactNode } from 'react'
 import { api } from '../../../convex/_generated/api'
 import { CheckIcon, PlusIcon, SparklesIcon } from '~/components/ui/Icon'
-import { SectionHeading } from '~/components/ui/SectionHeading'
 import type { Day } from '~/lib/dates'
 import { useI18n } from '~/lib/i18n'
 import { colors } from '../../components/ui/theme.stylex'
 
 type DishSuggestion = { name: string; notes: string; reason: string }
 type MealSuggestion = DishSuggestion & { date: string }
-type SuggestionKind = 'new_dishes' | 'weekly_plan'
-
-type SuggestionState = {
-  dishes: DishSuggestion[]
-  meals: MealSuggestion[]
-  message: string
-}
 
 type SavedDishState = {
   names: Set<string>
   message: string
 }
 
-const initialSuggestions: SuggestionState = { dishes: [], meals: [], message: '' }
 const initialSavedDishes: SavedDishState = { names: new Set(), message: '' }
 
 const tablet = '@media (min-width: 720px)'
@@ -31,57 +22,45 @@ const motion = '@media (prefers-reduced-motion: no-preference)'
 const display = 'Manrope, system-ui, sans-serif'
 
 const styles = stylex.create({
-  section: { marginTop: 48, [tablet]: { marginTop: 72 } },
-  intro: {
-    maxWidth: 650,
-    margin: '-4px 0 22px',
-    color: colors.muted,
-    fontSize: 13,
-    lineHeight: 1.6,
+  section: { marginTop: 24, [tablet]: { marginTop: 30 } },
+  prompt: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 16,
+    padding: '15px 16px',
+    border: `1px solid ${colors.line}`,
+    borderRadius: 17,
+    backgroundColor: 'rgb(255 254 249 / 72%)',
   },
-  choices: { display: 'grid', gap: 12, [tablet]: { gridTemplateColumns: '1fr 1fr' } },
-  choice: {
-    display: 'grid',
-    minHeight: 170,
-    alignContent: 'space-between',
-    gap: 28,
-    padding: 20,
+  promptCopy: { maxWidth: 560, color: colors.muted, fontSize: 11, lineHeight: 1.45 },
+  generateButton: {
+    display: 'inline-flex',
+    minHeight: 40,
+    flexShrink: 0,
+    alignItems: 'center',
+    gap: 7,
+    padding: '0 14px',
     border: 0,
-    borderRadius: 24,
-    color: colors.ink,
-    backgroundColor: '#f5d8a8',
-    textAlign: 'left',
-    [motion]: { transition: 'transform 150ms ease, background-color 150ms ease' },
-    ':hover': { backgroundColor: '#f0cd94', transform: 'translateY(-2px)' },
-  },
-  choiceAlt: { backgroundColor: colors.mint, ':hover': { backgroundColor: '#d2e4d7' } },
-  choiceIcon: {
-    display: 'grid',
-    width: 42,
-    height: 42,
-    placeItems: 'center',
-    borderRadius: '50%',
+    borderRadius: 999,
     color: '#fff',
     backgroundColor: colors.green,
-  },
-  choiceTitle: { display: 'block', fontFamily: display, fontSize: 20, letterSpacing: '-0.035em' },
-  choiceCopy: {
-    display: 'block',
-    maxWidth: 360,
-    marginTop: 6,
-    color: colors.muted,
     fontSize: 11,
-    lineHeight: 1.45,
+    fontWeight: 800,
+    [motion]: { transition: 'transform 140ms ease, background-color 140ms ease' },
+    ':hover': { backgroundColor: '#3b5048' },
+    ':active': { transform: 'translateY(1px)' },
   },
   status: {
-    marginTop: 16,
-    padding: '12px 14px',
-    borderRadius: 13,
+    marginTop: 12,
+    padding: '10px 12px',
+    borderRadius: 11,
     color: '#633a2e',
     backgroundColor: '#f8d9ce',
     fontSize: 12,
   },
-  results: { marginTop: 32 },
+  results: { marginTop: 24 },
   resultHeader: {
     display: 'flex',
     alignItems: 'baseline',
@@ -144,7 +123,35 @@ function errorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback
 }
 
-export function Suggestions({
+function SuggestionPrompt({
+  copy,
+  button,
+  pending,
+}: {
+  copy: string
+  button: string
+  pending: boolean
+}) {
+  return (
+    <div {...stylex.props(styles.prompt)}>
+      <p {...stylex.props(styles.promptCopy)}>{copy}</p>
+      <button {...stylex.props(styles.generateButton)} disabled={pending} type="submit">
+        <SparklesIcon /> {button}
+      </button>
+    </div>
+  )
+}
+
+function Status({ children }: { children: ReactNode }) {
+  if (!children) return null
+  return (
+    <p {...stylex.props(styles.status)} role="status" aria-live="polite">
+      {children}
+    </p>
+  )
+}
+
+export function DishSuggestions({
   week,
   addDishAction,
 }: {
@@ -153,26 +160,22 @@ export function Suggestions({
 }) {
   const { language, t } = useI18n()
   const generate = useAction(api.suggestions.generate)
-  const applyPlan = useMutation(api.mealPlans.applySuggestion)
   const [suggestions, generateAction, isGenerating] = useActionState(
-    async (current: SuggestionState, kind: SuggestionKind): Promise<SuggestionState> => {
+    async (current: { dishes: DishSuggestion[]; message: string }) => {
       try {
         const result = await generate({
-          kind,
+          kind: 'new_dishes',
           startDate: week[0].date,
           endDate: week[6].date,
           language,
         })
-        return result.kind === 'new_dishes'
-          ? { dishes: result.dishes, meals: [], message: '' }
-          : { dishes: [], meals: result.meals, message: '' }
+        return result.kind === 'new_dishes' ? { dishes: result.dishes, message: '' } : current
       } catch (error) {
         return { ...current, message: errorMessage(error, t.suggestionsError) }
       }
     },
-    initialSuggestions,
+    { dishes: [], message: '' },
   )
-  const [generatingKind, setOptimisticGeneratingKind] = useOptimistic<SuggestionKind | null>(null)
   const [savedDishes, saveDishAction, isSavingDish] = useActionState(
     async (current: SavedDishState, dish: DishSuggestion): Promise<SavedDishState> => {
       try {
@@ -188,26 +191,6 @@ export function Suggestions({
     savedDishes.names,
     (currentNames, name: string) => new Set(currentNames).add(name),
   )
-  const [planMessage, applyPlanAction, isApplyingPlan] = useActionState(
-    async (_current: string, meals: MealSuggestion[]) => {
-      try {
-        const result = await applyPlan({
-          meals: meals.map(({ date, name, notes }) => ({ date, name, notes })),
-        })
-        return result.preservedDates.length > 0 ? t.planAppliedWithCompleted : t.planApplied
-      } catch (error) {
-        return errorMessage(error, t.suggestionsError)
-      }
-    },
-    '',
-  )
-
-  function requestSuggestions(kind: SuggestionKind) {
-    startTransition(() => {
-      setOptimisticGeneratingKind(kind)
-      generateAction(kind)
-    })
-  }
 
   function saveSuggestedDish(dish: DishSuggestion) {
     startTransition(() => {
@@ -217,52 +200,15 @@ export function Suggestions({
   }
 
   return (
-    <section {...stylex.props(styles.section)} aria-labelledby="suggestions-heading">
-      <SectionHeading
-        id="suggestions-heading"
-        title={t.aiSuggestions}
-        meta={t.poweredByCloudflare}
-      />
-      <p {...stylex.props(styles.intro)}>{t.suggestionsIntro}</p>
-
-      <div {...stylex.props(styles.choices)}>
-        <button
-          {...stylex.props(styles.choice)}
-          disabled={isGenerating || isApplyingPlan}
-          onClick={() => requestSuggestions('new_dishes')}
-        >
-          <span {...stylex.props(styles.choiceIcon)}>
-            <SparklesIcon />
-          </span>
-          <span>
-            <strong {...stylex.props(styles.choiceTitle)}>
-              {generatingKind === 'new_dishes' ? t.thinking : t.suggestNewDishes}
-            </strong>
-            <span {...stylex.props(styles.choiceCopy)}>{t.suggestNewDishesCopy}</span>
-          </span>
-        </button>
-        <button
-          {...stylex.props(styles.choice, styles.choiceAlt)}
-          disabled={isGenerating || isApplyingPlan}
-          onClick={() => requestSuggestions('weekly_plan')}
-        >
-          <span {...stylex.props(styles.choiceIcon)}>
-            <SparklesIcon />
-          </span>
-          <span>
-            <strong {...stylex.props(styles.choiceTitle)}>
-              {generatingKind === 'weekly_plan' ? t.thinking : t.planNextWeek}
-            </strong>
-            <span {...stylex.props(styles.choiceCopy)}>{t.planNextWeekCopy}</span>
-          </span>
-        </button>
-      </div>
-
-      {suggestions.message && (
-        <p {...stylex.props(styles.status)} role="status" aria-live="polite">
-          {suggestions.message}
-        </p>
-      )}
+    <section {...stylex.props(styles.section)} aria-label={t.getSuggestions}>
+      <form action={generateAction}>
+        <SuggestionPrompt
+          copy={t.dishSuggestionsCopy}
+          button={isGenerating ? t.thinking : t.getSuggestions}
+          pending={isGenerating}
+        />
+      </form>
+      <Status>{suggestions.message}</Status>
 
       {suggestions.dishes.length > 0 && (
         <div {...stylex.props(styles.results)}>
@@ -299,18 +245,62 @@ export function Suggestions({
               )
             })}
           </ul>
-          {savedDishes.message && (
-            <p {...stylex.props(styles.status)} role="status" aria-live="polite">
-              {savedDishes.message}
-            </p>
-          )}
+          <Status>{savedDishes.message}</Status>
         </div>
       )}
+    </section>
+  )
+}
+
+export function WeekSuggestions({ week }: { week: Day[] }) {
+  const { language, t } = useI18n()
+  const generate = useAction(api.suggestions.generate)
+  const applyPlan = useMutation(api.mealPlans.applySuggestion)
+  const [suggestions, generateAction, isGenerating] = useActionState(
+    async (current: { meals: MealSuggestion[]; message: string }) => {
+      try {
+        const result = await generate({
+          kind: 'weekly_plan',
+          startDate: week[0].date,
+          endDate: week[6].date,
+          language,
+        })
+        return result.kind === 'weekly_plan' ? { meals: result.meals, message: '' } : current
+      } catch (error) {
+        return { ...current, message: errorMessage(error, t.suggestionsError) }
+      }
+    },
+    { meals: [], message: '' },
+  )
+  const [planMessage, applyPlanAction, isApplyingPlan] = useActionState(
+    async (_current: string, meals: MealSuggestion[]) => {
+      try {
+        const result = await applyPlan({
+          meals: meals.map(({ date, name, notes }) => ({ date, name, notes })),
+        })
+        return result.preservedDates.length > 0 ? t.planAppliedWithCompleted : t.planApplied
+      } catch (error) {
+        return errorMessage(error, t.suggestionsError)
+      }
+    },
+    '',
+  )
+
+  return (
+    <section {...stylex.props(styles.section)} aria-label={t.suggestAPlan}>
+      <form action={generateAction}>
+        <SuggestionPrompt
+          copy={t.weekSuggestionsCopy}
+          button={isGenerating ? t.thinking : t.suggestAPlan}
+          pending={isGenerating || isApplyingPlan}
+        />
+      </form>
+      <Status>{suggestions.message}</Status>
 
       {suggestions.meals.length > 0 && (
         <div {...stylex.props(styles.results)}>
           <div {...stylex.props(styles.resultHeader)}>
-            <h2 {...stylex.props(styles.resultTitle)}>{t.nextWeeksPlan}</h2>
+            <h2 {...stylex.props(styles.resultTitle)}>{t.suggestedPlan}</h2>
             <span {...stylex.props(styles.resultMeta)}>
               {week[0].month} {week[0].dayNumber}–{week[6].month} {week[6].dayNumber}
             </span>
@@ -337,11 +327,7 @@ export function Suggestions({
             {isApplyingPlan ? t.savingPlan : t.useThisPlan}
           </button>
           <p {...stylex.props(styles.disclosure)}>{t.planDisclosure}</p>
-          {planMessage && (
-            <p {...stylex.props(styles.status)} role="status" aria-live="polite">
-              {planMessage}
-            </p>
-          )}
+          <Status>{planMessage}</Status>
         </div>
       )}
     </section>

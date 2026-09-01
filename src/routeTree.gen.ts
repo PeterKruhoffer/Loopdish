@@ -12,7 +12,6 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DishesRouteImport } from './routes/dishes'
 import { Route as HouseholdRouteImport } from './routes/household'
-import { Route as SuggestionsRouteImport } from './routes/suggestions'
 import { Route as WeekRouteImport } from './routes/week'
 import { Route as JoinInviteIdRouteImport } from './routes/join/$inviteId'
 import { Route as ApiAuthCallbackRouteImport } from './routes/api/auth/callback'
@@ -31,11 +30,6 @@ const DishesRoute = DishesRouteImport.update({
 const HouseholdRoute = HouseholdRouteImport.update({
   id: '/household',
   path: '/household',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const SuggestionsRoute = SuggestionsRouteImport.update({
-  id: '/suggestions',
-  path: '/suggestions',
   getParentRoute: () => rootRouteImport,
 } as any)
 const WeekRoute = WeekRouteImport.update({
@@ -63,7 +57,6 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dishes': typeof DishesRoute
   '/household': typeof HouseholdRoute
-  '/suggestions': typeof SuggestionsRoute
   '/week': typeof WeekRoute
   '/join/$inviteId': typeof JoinInviteIdRoute
   '/api/auth/callback': typeof ApiAuthCallbackRoute
@@ -73,7 +66,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dishes': typeof DishesRoute
   '/household': typeof HouseholdRoute
-  '/suggestions': typeof SuggestionsRoute
   '/week': typeof WeekRoute
   '/join/$inviteId': typeof JoinInviteIdRoute
   '/api/auth/callback': typeof ApiAuthCallbackRoute
@@ -84,7 +76,6 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/dishes': typeof DishesRoute
   '/household': typeof HouseholdRoute
-  '/suggestions': typeof SuggestionsRoute
   '/week': typeof WeekRoute
   '/join/$inviteId': typeof JoinInviteIdRoute
   '/api/auth/callback': typeof ApiAuthCallbackRoute
@@ -96,7 +87,6 @@ export interface FileRouteTypes {
     | '/'
     | '/dishes'
     | '/household'
-    | '/suggestions'
     | '/week'
     | '/join/$inviteId'
     | '/api/auth/callback'
@@ -106,7 +96,6 @@ export interface FileRouteTypes {
     | '/'
     | '/dishes'
     | '/household'
-    | '/suggestions'
     | '/week'
     | '/join/$inviteId'
     | '/api/auth/callback'
@@ -116,7 +105,6 @@ export interface FileRouteTypes {
     | '/'
     | '/dishes'
     | '/household'
-    | '/suggestions'
     | '/week'
     | '/join/$inviteId'
     | '/api/auth/callback'
@@ -127,7 +115,6 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DishesRoute: typeof DishesRoute
   HouseholdRoute: typeof HouseholdRoute
-  SuggestionsRoute: typeof SuggestionsRoute
   WeekRoute: typeof WeekRoute
   JoinInviteIdRoute: typeof JoinInviteIdRoute
   ApiAuthCallbackRoute: typeof ApiAuthCallbackRoute
@@ -155,13 +142,6 @@ declare module '@tanstack/react-router' {
       path: '/household'
       fullPath: '/household'
       preLoaderRoute: typeof HouseholdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/suggestions': {
-      id: '/suggestions'
-      path: '/suggestions'
-      fullPath: '/suggestions'
-      preLoaderRoute: typeof SuggestionsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/week': {
@@ -199,7 +179,6 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DishesRoute: DishesRoute,
   HouseholdRoute: HouseholdRoute,
-  SuggestionsRoute: SuggestionsRoute,
   WeekRoute: WeekRoute,
   JoinInviteIdRoute: JoinInviteIdRoute,
   ApiAuthCallbackRoute: ApiAuthCallbackRoute,
