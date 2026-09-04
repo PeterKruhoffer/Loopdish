@@ -4,6 +4,7 @@ import { startTransition, useActionState, useOptimistic, type ReactNode } from '
 import { api } from '../../../convex/_generated/api'
 import { CheckIcon, PlusIcon, SparklesIcon } from '~/components/ui/Icon'
 import type { Day } from '~/lib/dates'
+import { userErrorMessage } from '~/lib/errors'
 import { useI18n } from '~/lib/i18n'
 import { colors } from '../../components/ui/theme.stylex'
 
@@ -119,10 +120,6 @@ const styles = stylex.create({
   disclosure: { marginTop: 9, color: colors.muted, fontSize: 10, lineHeight: 1.45 },
 })
 
-function errorMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback
-}
-
 function SuggestionPrompt({
   copy,
   button,
@@ -171,7 +168,7 @@ export function DishSuggestions({
         })
         return result.kind === 'new_dishes' ? { dishes: result.dishes, message: '' } : current
       } catch (error) {
-        return { ...current, message: errorMessage(error, t.suggestionsError) }
+        return { ...current, message: userErrorMessage(error, language, t.suggestionsError) }
       }
     },
     { dishes: [], message: '' },
@@ -182,7 +179,7 @@ export function DishSuggestions({
         await addDishAction(dish.name, dish.notes)
         return { names: new Set(current.names).add(dish.name), message: '' }
       } catch (error) {
-        return { ...current, message: errorMessage(error, t.suggestionsError) }
+        return { ...current, message: userErrorMessage(error, language, t.saveSuggestionError) }
       }
     },
     initialSavedDishes,
@@ -267,7 +264,7 @@ export function WeekSuggestions({ week }: { week: Day[] }) {
         })
         return result.kind === 'weekly_plan' ? { meals: result.meals, message: '' } : current
       } catch (error) {
-        return { ...current, message: errorMessage(error, t.suggestionsError) }
+        return { ...current, message: userErrorMessage(error, language, t.suggestionsError) }
       }
     },
     { meals: [], message: '' },
@@ -280,7 +277,7 @@ export function WeekSuggestions({ week }: { week: Day[] }) {
         })
         return result.preservedDates.length > 0 ? t.planAppliedWithCompleted : t.planApplied
       } catch (error) {
-        return errorMessage(error, t.suggestionsError)
+        return userErrorMessage(error, language, t.applySuggestionError)
       }
     },
     '',

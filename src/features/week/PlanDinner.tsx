@@ -4,6 +4,7 @@ import { useFormStatus } from 'react-dom'
 import { PlusIcon } from '~/components/ui/Icon'
 import type { Dish } from '~/features/home/types'
 import { friendlyDate, type Day } from '~/lib/dates'
+import { userErrorMessage } from '~/lib/errors'
 import { useI18n } from '~/lib/i18n'
 import { colors } from '../../components/ui/theme.stylex'
 
@@ -97,10 +98,6 @@ type PlanDinnerFormProps = {
   planDinnerAction: (dishId: string, date: string) => Promise<void>
 }
 
-function messageFrom(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback
-}
-
 function AddToWeekButton() {
   const { pending } = useFormStatus()
   const { t } = useI18n()
@@ -131,7 +128,7 @@ function PlanDinnerForm({
         await planDinnerAction(dishId, date)
         return `${t.dinnerPlanned} ${friendlyDate(date, language)}.`
       } catch (error) {
-        return messageFrom(error, t.somethingWentWrong)
+        return userErrorMessage(error, language, t.planDinnerError)
       }
     },
     '',

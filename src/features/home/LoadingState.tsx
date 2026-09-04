@@ -177,9 +177,11 @@ export function DashboardSkeleton({ view }: { view: 'week' | 'dishes' }) {
 }
 
 export function DashboardError({
+  title,
   message,
   onRetry,
 }: {
+  title: string
   message: string
   onRetry: () => Promise<unknown>
 }) {
@@ -187,6 +189,7 @@ export function DashboardError({
   const [isRetrying, startRetryAction] = useTransition()
   return (
     <div {...stylex.props(styles.error)} role="alert">
+      <strong>{title}</strong>
       <p>{message}</p>
       <button
         {...stylex.props(styles.retryButton)}

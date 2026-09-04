@@ -263,7 +263,11 @@ export function ConnectedHome({ view }: { view: AppView }) {
           dashboard.isPending ? (
             <DashboardSkeleton view="dishes" />
           ) : dashboard.queryError ? (
-            <DashboardError message={t.dashboardLoadError} onRetry={dashboard.retryDashboard} />
+            <DashboardError
+              title={t.dashboardLoadError}
+              message={t.dashboardLoadErrorHelp}
+              onRetry={dashboard.retryDashboard}
+            />
           ) : (
             <>
               <Dishes dishes={data?.dishes ?? []} addDishAction={dashboard.addDishAction} />

@@ -7,6 +7,7 @@ import { useMutation } from 'convex/react'
 import { startTransition, useActionState } from 'react'
 import { LanguageSelect } from '~/components/ui/LanguageSelect'
 import { Logo } from '~/components/ui/Logo'
+import { userErrorMessage } from '~/lib/errors'
 import { useI18n } from '~/lib/i18n'
 import { api } from '../../../convex/_generated/api'
 import { colors } from '../../components/ui/theme.stylex'
@@ -65,7 +66,7 @@ const styles = stylex.create({
 
 export function JoinHousehold({ inviteId }: { inviteId: string }) {
   const { loading, user } = useAuth()
-  const { t } = useI18n()
+  const { language, t } = useI18n()
   const navigate = useNavigate()
   const inviteQuery = useQuery(convexQuery(api.households.getInvite, { inviteId }))
   const acceptInvite = useMutation(api.households.acceptInvite)
@@ -75,7 +76,7 @@ export function JoinHousehold({ inviteId }: { inviteId: string }) {
       await navigate({ to: '/household' })
       return ''
     } catch (joinError) {
-      return joinError instanceof Error ? joinError.message : t.somethingWentWrong
+      return userErrorMessage(joinError, language, t.joinHouseholdError)
     }
   }, '')
   const invite = inviteQuery.data
@@ -83,6 +84,21 @@ export function JoinHousehold({ inviteId }: { inviteId: string }) {
   let content
   if (inviteQuery.isPending || loading) {
     content = <p {...stylex.props(styles.copy)}>{t.loading}</p>
+  } else if (inviteQuery.isError) {
+    content = (
+      <>
+        <p {...stylex.props(styles.error)} role="alert">
+          {t.inviteLoadError} {t.inviteLoadErrorHelp}
+        </p>
+        <button
+          {...stylex.props(styles.button)}
+          type="button"
+          onClick={() => void inviteQuery.refetch()}
+        >
+          {t.tryAgain}
+        </button>
+      </>
+    )
   } else if (!invite) {
     content = <p {...stylex.props(styles.error)}>{t.invalidInvite}</p>
   } else if (!invite.available) {

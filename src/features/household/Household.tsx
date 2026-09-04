@@ -2,9 +2,11 @@ import { convexQuery } from '@convex-dev/react-query'
 import * as stylex from '@stylexjs/stylex'
 import { useQuery } from '@tanstack/react-query'
 import { useMutation } from 'convex/react'
-import { startTransition, useActionState, useTransition } from 'react'
+import { startTransition, useActionState, useState, useTransition } from 'react'
 import { useFormStatus } from 'react-dom'
 import { PlusIcon, UsersIcon } from '~/components/ui/Icon'
+import { DashboardError } from '~/features/home/LoadingState'
+import { userErrorMessage } from '~/lib/errors'
 import { useI18n } from '~/lib/i18n'
 import { api } from '../../../convex/_generated/api'
 import { colors } from '../../components/ui/theme.stylex'
@@ -132,10 +134,6 @@ const styles = stylex.create({
   status: { marginTop: 12, color: '#633a2e', fontSize: 11, fontWeight: 700 },
 })
 
-function messageFrom(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback
-}
-
 function SaveNameButton() {
   const { pending } = useFormStatus()
   const { t } = useI18n()
@@ -149,7 +147,7 @@ function SaveNameButton() {
 const initialInviteState = { url: '', message: '' }
 
 export function Household({ signOutAction }: { signOutAction: () => Promise<void> }) {
-  const { t } = useI18n()
+  const { language, t } = useI18n()
   const householdQuery = useQuery(convexQuery(api.households.get, {}))
   const renameHousehold = useMutation(api.households.rename)
   const createInvite = useMutation(api.households.createInvite)
@@ -162,7 +160,7 @@ export function Household({ signOutAction }: { signOutAction: () => Promise<void
         await renameHousehold({ name })
         return t.householdSaved
       } catch (error) {
-        return messageFrom(error, t.somethingWentWrong)
+        return userErrorMessage(error, language, t.renameHouseholdError)
       }
     },
     '',
@@ -178,7 +176,7 @@ export function Household({ signOutAction }: { signOutAction: () => Promise<void
         return { url, message: t.inviteReady }
       }
     } catch (error) {
-      return { url: '', message: messageFrom(error, t.somethingWentWrong) }
+      return { url: '', message: userErrorMessage(error, language, t.createInviteError) }
     }
   }, initialInviteState)
   const [copyMessage, copyInviteAction, isCopyingInvite] = useActionState(
@@ -193,6 +191,7 @@ export function Household({ signOutAction }: { signOutAction: () => Promise<void
     '',
   )
   const [isSigningOut, startSignOutAction] = useTransition()
+  const [signOutMessage, setSignOutMessage] = useState('')
   const data = householdQuery.data
   const canManageHousehold = data?.canManageHousehold === true
 
@@ -203,111 +202,136 @@ export function Household({ signOutAction }: { signOutAction: () => Promise<void
         <h1 {...stylex.props(styles.title)}>{t.householdTitle}</h1>
         <p {...stylex.props(styles.intro)}>{t.householdCopy}</p>
       </section>
-      <div {...stylex.props(styles.layout, !canManageHousehold && styles.singleColumn)}>
-        <section {...stylex.props(styles.card)}>
-          <h2 {...stylex.props(styles.sectionTitle)}>{t.people}</h2>
-          {canManageHousehold ? (
-            <form action={saveNameAction}>
-              <label {...stylex.props(styles.fieldLabel)} htmlFor="household-name">
-                {t.householdName}
-              </label>
-              <div {...stylex.props(styles.formRow)}>
-                <input
-                  {...stylex.props(styles.input)}
-                  key={data?.household?.name}
-                  id="household-name"
-                  name="name"
-                  defaultValue={data?.household?.name}
-                  placeholder={t.householdNamePlaceholder}
-                  required
-                />
-                <SaveNameButton />
+      {householdQuery.isError && !data ? (
+        <DashboardError
+          title={t.householdLoadError}
+          message={t.householdLoadErrorHelp}
+          onRetry={() => householdQuery.refetch()}
+        />
+      ) : (
+        <div {...stylex.props(styles.layout, !canManageHousehold && styles.singleColumn)}>
+          <section {...stylex.props(styles.card)}>
+            <h2 {...stylex.props(styles.sectionTitle)}>{t.people}</h2>
+            {canManageHousehold ? (
+              <form action={saveNameAction}>
+                <label {...stylex.props(styles.fieldLabel)} htmlFor="household-name">
+                  {t.householdName}
+                </label>
+                <div {...stylex.props(styles.formRow)}>
+                  <input
+                    {...stylex.props(styles.input)}
+                    key={data?.household?.name}
+                    id="household-name"
+                    name="name"
+                    defaultValue={data?.household?.name}
+                    placeholder={t.householdNamePlaceholder}
+                    required
+                  />
+                  <SaveNameButton />
+                </div>
+                {nameMessage && (
+                  <p {...stylex.props(styles.status)} aria-live="polite" role="status">
+                    {nameMessage}
+                  </p>
+                )}
+              </form>
+            ) : data ? (
+              <div>
+                <p {...stylex.props(styles.fieldLabel)}>{t.householdName}</p>
+                <p {...stylex.props(styles.householdValue)}>{data?.household?.name}</p>
               </div>
-              {nameMessage && (
-                <p {...stylex.props(styles.status)} aria-live="polite" role="status">
-                  {nameMessage}
-                </p>
-              )}
-            </form>
-          ) : data ? (
-            <div>
-              <p {...stylex.props(styles.fieldLabel)}>{t.householdName}</p>
-              <p {...stylex.props(styles.householdValue)}>{data?.household?.name}</p>
-            </div>
-          ) : null}
-          <div {...stylex.props(styles.memberList)}>
-            {data?.members.map((member) => (
-              <div {...stylex.props(styles.member)} key={member.id ?? member.email ?? member.name}>
-                <span {...stylex.props(styles.avatar)}>
-                  {member.name.slice(0, 1).toUpperCase()}
-                </span>
-                <span>
-                  <strong {...stylex.props(styles.memberName)}>
-                    {member.name} {member.isCurrentUser ? `(${t.you})` : ''}
-                  </strong>
-                  {member.email && (
-                    <span {...stylex.props(styles.memberEmail)}>{member.email}</span>
-                  )}
-                </span>
-                <span {...stylex.props(styles.badge)}>
-                  {member.role === 'owner' ? t.owner : t.member}
-                </span>
-              </div>
-            ))}
-          </div>
-          <button
-            {...stylex.props(styles.button, styles.dangerButton)}
-            disabled={isSigningOut}
-            onClick={() => startSignOutAction(signOutAction)}
-            type="button"
-          >
-            {t.signOut}
-          </button>
-        </section>
-
-        {canManageHousehold && (
-          <section {...stylex.props(styles.card, styles.inviteCard)}>
-            <span {...stylex.props(styles.inviteIcon)}>
-              <UsersIcon />
-            </span>
-            <h2 {...stylex.props(styles.sectionTitle)}>{t.inviteSomeone}</h2>
-            <p {...stylex.props(styles.copy)}>{t.inviteCopy}</p>
-            {!inviteState.url ? (
-              <button
-                {...stylex.props(styles.button, styles.secondaryButton)}
-                disabled={isCreatingInvite}
-                onClick={() => startTransition(createInviteAction)}
-                type="button"
-              >
-                <PlusIcon /> {t.createInvite}
-              </button>
-            ) : (
-              <div {...stylex.props(styles.inviteRow)}>
-                <input
-                  {...stylex.props(styles.input, styles.inviteInput)}
-                  aria-label={t.createInvite}
-                  readOnly
-                  value={inviteState.url}
-                  onFocus={(event) => event.currentTarget.select()}
-                />
-                <button
-                  {...stylex.props(styles.button)}
-                  disabled={isCopyingInvite}
-                  onClick={() => startTransition(() => copyInviteAction(inviteState.url))}
-                  type="button"
+            ) : null}
+            <div {...stylex.props(styles.memberList)}>
+              {data?.members.map((member) => (
+                <div
+                  {...stylex.props(styles.member)}
+                  key={member.id ?? member.email ?? member.name}
                 >
-                  {t.copyLink}
-                </button>
-              </div>
-            )}
-            {(copyMessage || inviteState.message) && (
-              <p {...stylex.props(styles.status)} aria-live="polite" role="status">
-                {copyMessage || inviteState.message}
+                  <span {...stylex.props(styles.avatar)}>
+                    {member.name.slice(0, 1).toUpperCase()}
+                  </span>
+                  <span>
+                    <strong {...stylex.props(styles.memberName)}>
+                      {member.name} {member.isCurrentUser ? `(${t.you})` : ''}
+                    </strong>
+                    {member.email && (
+                      <span {...stylex.props(styles.memberEmail)}>{member.email}</span>
+                    )}
+                  </span>
+                  <span {...stylex.props(styles.badge)}>
+                    {member.role === 'owner' ? t.owner : t.member}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <button
+              {...stylex.props(styles.button, styles.dangerButton)}
+              disabled={isSigningOut}
+              onClick={() => {
+                setSignOutMessage('')
+                startSignOutAction(async () => {
+                  try {
+                    await signOutAction()
+                  } catch (error) {
+                    setSignOutMessage(userErrorMessage(error, language, t.signOutError))
+                  }
+                })
+              }}
+              type="button"
+            >
+              {t.signOut}
+            </button>
+            {signOutMessage && (
+              <p {...stylex.props(styles.status)} aria-live="assertive" role="alert">
+                {signOutMessage}
               </p>
             )}
           </section>
-        )}
-      </div>
+
+          {canManageHousehold && (
+            <section {...stylex.props(styles.card, styles.inviteCard)}>
+              <span {...stylex.props(styles.inviteIcon)}>
+                <UsersIcon />
+              </span>
+              <h2 {...stylex.props(styles.sectionTitle)}>{t.inviteSomeone}</h2>
+              <p {...stylex.props(styles.copy)}>{t.inviteCopy}</p>
+              {!inviteState.url ? (
+                <button
+                  {...stylex.props(styles.button, styles.secondaryButton)}
+                  disabled={isCreatingInvite}
+                  onClick={() => startTransition(createInviteAction)}
+                  type="button"
+                >
+                  <PlusIcon /> {t.createInvite}
+                </button>
+              ) : (
+                <div {...stylex.props(styles.inviteRow)}>
+                  <input
+                    {...stylex.props(styles.input, styles.inviteInput)}
+                    aria-label={t.createInvite}
+                    readOnly
+                    value={inviteState.url}
+                    onFocus={(event) => event.currentTarget.select()}
+                  />
+                  <button
+                    {...stylex.props(styles.button)}
+                    disabled={isCopyingInvite}
+                    onClick={() => startTransition(() => copyInviteAction(inviteState.url))}
+                    type="button"
+                  >
+                    {t.copyLink}
+                  </button>
+                </div>
+              )}
+              {(copyMessage || inviteState.message) && (
+                <p {...stylex.props(styles.status)} aria-live="polite" role="status">
+                  {copyMessage || inviteState.message}
+                </p>
+              )}
+            </section>
+          )}
+        </div>
+      )}
     </>
   )
 }

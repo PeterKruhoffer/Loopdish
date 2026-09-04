@@ -5,6 +5,7 @@ import { SectionHeading } from '~/components/ui/SectionHeading'
 import { DashboardError, DashboardSkeleton } from '~/features/home/LoadingState'
 import type { PlannedMeal } from '~/features/home/types'
 import type { Day } from '~/lib/dates'
+import { userErrorMessage } from '~/lib/errors'
 import { useI18n } from '~/lib/i18n'
 import { colors } from '../../components/ui/theme.stylex'
 
@@ -354,7 +355,7 @@ export function WeekPlanner({
   removePlanAction: (plan: PlannedMeal) => Promise<void>
   onRetry: () => Promise<unknown>
 }) {
-  const { t } = useI18n()
+  const { language, t } = useI18n()
   const [actionMessage, setActionMessage] = useState('')
   const [isMealActionPending, startMealAction] = useTransition()
   const selectedDay = week.find((day) => day.date === selectedDate) ?? week[0]
@@ -367,7 +368,7 @@ export function WeekPlanner({
         await action()
         startMealAction(() => setActionMessage(successMessage))
       } catch (error) {
-        const message = error instanceof Error ? error.message : t.somethingWentWrong
+        const message = userErrorMessage(error, language, t.updateDinnerError)
         startMealAction(() => setActionMessage(message))
       }
     })
@@ -412,7 +413,11 @@ export function WeekPlanner({
       {isPending ? (
         <DashboardSkeleton view="week" />
       ) : queryError ? (
-        <DashboardError message={t.dashboardLoadError} onRetry={onRetry} />
+        <DashboardError
+          title={t.dashboardLoadError}
+          message={t.dashboardLoadErrorHelp}
+          onRetry={onRetry}
+        />
       ) : (
         <>
           <div {...stylex.props(styles.days)}>

@@ -56,6 +56,12 @@ const copy = {
     nextWeek: 'Next week',
     chooseWeek: 'Choose a week to plan',
     dashboardLoadError: "We couldn't load your dinners.",
+    dashboardLoadErrorHelp:
+      "Your saved dishes and plans haven't changed. Check your connection, then try again.",
+    householdLoadError: "We couldn't load your household.",
+    householdLoadErrorHelp: "Your household hasn't changed. Check your connection, then try again.",
+    inviteLoadError: "We couldn't check this invite.",
+    inviteLoadErrorHelp: 'Check your connection, then try again. The invite has not been used.',
     tryAgain: 'Try again',
     addedToHistory: 'Added to history',
     weAteThis: 'We ate this',
@@ -87,7 +93,18 @@ const copy = {
     saveDish: 'Save dish',
     recentlyEaten: 'Recently eaten',
     emptyHistory: 'Completed dinners will show up here.',
-    somethingWentWrong: 'Something went wrong',
+    somethingWentWrong: "We couldn't complete that action. Nothing was changed. Try again.",
+    addDishError:
+      "We couldn't save this dish. Nothing was added. Check your connection, then try again.",
+    planDinnerError:
+      "We couldn't plan this dinner. Your week hasn't changed. Check your connection, then try again.",
+    updateDinnerError: "We couldn't update this dinner. Your saved plan hasn't changed. Try again.",
+    renameHouseholdError:
+      "We couldn't save the household name. The current name hasn't changed. Try again.",
+    createInviteError: "We couldn't create an invite. No link was created. Try again.",
+    joinHouseholdError:
+      "We couldn't join this household. Your current household hasn't changed. Check the invite and try again.",
+    signOutError: "We couldn't sign you out. You're still signed in. Try again.",
     dishAdded: 'Dish added.',
     dinnerPlanned: 'Dinner planned for',
     historyAdded: 'Added to dinner history.',
@@ -97,7 +114,12 @@ const copy = {
     suggestAPlan: 'Suggest a plan',
     weekSuggestionsCopy: 'Fill the selected week from your saved dishes, with up to two new ones.',
     thinking: 'Thinking…',
-    suggestionsError: "We couldn't make suggestions right now.",
+    suggestionsError:
+      "We couldn't make suggestions right now. Your dishes and plan haven't changed. Try again.",
+    saveSuggestionError:
+      "We couldn't save this suggestion. Your dishes haven't changed. Try again.",
+    applySuggestionError:
+      "We couldn't save this suggested plan. Your current plan hasn't changed. Try again.",
     dishesToTry: 'Dishes to try',
     addTheOnesYouLike: 'Add the ones you like',
     add: 'Add',
@@ -167,6 +189,12 @@ const copy = {
     nextWeek: 'Næste uge',
     chooseWeek: 'Vælg en uge at planlægge',
     dashboardLoadError: 'Vi kunne ikke indlæse jeres madplan.',
+    dashboardLoadErrorHelp:
+      'Jeres gemte retter og madplan er ikke ændret. Tjek forbindelsen, og prøv igen.',
+    householdLoadError: 'Vi kunne ikke indlæse jeres husstand.',
+    householdLoadErrorHelp: 'Jeres husstand er ikke ændret. Tjek forbindelsen, og prøv igen.',
+    inviteLoadError: 'Vi kunne ikke kontrollere invitationen.',
+    inviteLoadErrorHelp: 'Tjek forbindelsen, og prøv igen. Invitationen er ikke blevet brugt.',
     tryAgain: 'Prøv igen',
     addedToHistory: 'Føjet til historikken',
     weAteThis: 'Det fik vi',
@@ -198,7 +226,20 @@ const copy = {
     saveDish: 'Gem ret',
     recentlyEaten: 'Senest spist',
     emptyHistory: 'Aftensmad, I har spist, vises her.',
-    somethingWentWrong: 'Noget gik galt',
+    somethingWentWrong: 'Vi kunne ikke gennemføre handlingen. Intet er blevet ændret. Prøv igen.',
+    addDishError:
+      'Vi kunne ikke gemme retten. Intet blev tilføjet. Tjek forbindelsen, og prøv igen.',
+    planDinnerError:
+      'Vi kunne ikke planlægge måltidet. Ugen er ikke ændret. Tjek forbindelsen, og prøv igen.',
+    updateDinnerError:
+      'Vi kunne ikke opdatere måltidet. Den gemte madplan er ikke ændret. Prøv igen.',
+    renameHouseholdError:
+      'Vi kunne ikke gemme husstandens navn. Det nuværende navn er ikke ændret. Prøv igen.',
+    createInviteError:
+      'Vi kunne ikke oprette invitationen. Der blev ikke oprettet et link. Prøv igen.',
+    joinHouseholdError:
+      'Vi kunne ikke tilmelde dig husstanden. Din nuværende husstand er ikke ændret. Kontrollér invitationen, og prøv igen.',
+    signOutError: 'Vi kunne ikke logge dig ud. Du er stadig logget ind. Prøv igen.',
     dishAdded: 'Retten er tilføjet.',
     dinnerPlanned: 'Aftensmad planlagt til',
     historyAdded: 'Føjet til madhistorikken.',
@@ -208,7 +249,11 @@ const copy = {
     suggestAPlan: 'Foreslå en madplan',
     weekSuggestionsCopy: 'Udfyld den valgte uge med gemte retter og op til to nye.',
     thinking: 'Tænker…',
-    suggestionsError: 'Vi kunne ikke lave forslag lige nu.',
+    suggestionsError:
+      'Vi kunne ikke lave forslag lige nu. Jeres retter og madplan er ikke ændret. Prøv igen.',
+    saveSuggestionError: 'Vi kunne ikke gemme forslaget. Jeres retter er ikke ændret. Prøv igen.',
+    applySuggestionError:
+      'Vi kunne ikke gemme den foreslåede madplan. Jeres nuværende madplan er ikke ændret. Prøv igen.',
     dishesToTry: 'Retter at prøve',
     addTheOnesYouLike: 'Tilføj dem, I kan lide',
     add: 'Tilføj',

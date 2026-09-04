@@ -5,6 +5,7 @@ import { PlateIcon, PlusIcon, SearchIcon } from '~/components/ui/Icon'
 import { SectionHeading } from '~/components/ui/SectionHeading'
 import type { Dish } from '~/features/home/types'
 import { friendlyDate } from '~/lib/dates'
+import { userErrorMessage } from '~/lib/errors'
 import { useI18n } from '~/lib/i18n'
 import { colors } from '../../components/ui/theme.stylex'
 
@@ -265,10 +266,6 @@ function SaveDishButton() {
   )
 }
 
-function messageFrom(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback
-}
-
 export function Dishes({
   dishes,
   addDishAction,
@@ -276,7 +273,7 @@ export function Dishes({
   dishes: Dish[]
   addDishAction: (name: string, notes?: string) => Promise<void>
 }) {
-  const { t } = useI18n()
+  const { language, t } = useI18n()
   const [name, setName] = useState('')
   const [notes, setNotes] = useState('')
   const [search, setSearch] = useState('')
@@ -296,7 +293,7 @@ export function Dishes({
         setNotes('')
         return t.dishAdded
       } catch (error) {
-        return messageFrom(error, t.somethingWentWrong)
+        return userErrorMessage(error, language, t.addDishError)
       }
     },
     '',
