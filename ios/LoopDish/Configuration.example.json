@@ -1,0 +1,6 @@
+{
+  "convexURL": "https://YOUR-DEPLOYMENT.convex.cloud",
+  "workosClientID": "client_YOUR_EXISTING_WORKOS_CLIENT_ID",
+  "webURL": "https://YOUR-LOOPDISH-WEBSITE",
+  "redirectURI": "loopdish://auth/callback"
+}

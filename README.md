@@ -23,3 +23,7 @@ To run it locally, use Node.js 22 or newer with [Vite+](https://viteplus.dev/), 
 vp install
 pnpm dev
 ```
+
+## Native iOS app
+
+The SwiftUI client lives in `ios/` and uses the same Convex backend and WorkOS accounts. See [iOS setup and testing](ios/README.md) for Xcode instructions and the required native sign-in redirect configuration.

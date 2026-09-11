@@ -1,0 +1,4 @@
+*.xcodeproj/
+Generated/
+LoopDish/Configuration.local.json
+DerivedData/
