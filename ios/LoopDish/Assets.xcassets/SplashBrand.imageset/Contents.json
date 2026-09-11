@@ -1,6 +1,4 @@
 {
-  "images": [
-    { "filename": "SplashBrand.png", "idiom": "universal" }
-  ],
+  "images": [{ "filename": "SplashBrand.png", "idiom": "universal" }],
   "info": { "author": "xcode", "version": 1 }
 }
