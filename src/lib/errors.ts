@@ -15,6 +15,7 @@ const knownErrors: Record<Language, Record<string, string>> = {
     'Only the household owner can do that':
       'Only the household owner can make this change. Ask the owner to do it for you.',
     'Give your household a name': 'Give your household a name, then try saving it again.',
+    'Use a name between 1 and 100 characters': 'Use a name between 1 and 100 characters.',
     'That invite is not valid': 'This invite is not valid. Ask the sender for a new link.',
     'That invite is no longer available':
       'This invite has expired or has already been used. Ask the sender for a new link.',
@@ -43,6 +44,7 @@ const knownErrors: Record<Language, Record<string, string>> = {
     'Only the household owner can do that':
       'Kun husstandens ejer kan foretage denne ændring. Bed ejeren om at gøre det.',
     'Give your household a name': 'Giv husstanden et navn, og prøv at gemme igen.',
+    'Use a name between 1 and 100 characters': 'Brug et navn på mellem 1 og 100 tegn.',
     'That invite is not valid': 'Invitationen er ugyldig. Bed afsenderen om et nyt link.',
     'That invite is no longer available':
       'Invitationen er udløbet eller allerede brugt. Bed afsenderen om et nyt link.',

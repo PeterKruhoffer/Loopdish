@@ -151,6 +151,22 @@ export function Household({ signOutAction }: { signOutAction: () => Promise<void
   const householdQuery = useQuery(convexQuery(api.households.get, {}))
   const renameHousehold = useMutation(api.households.rename)
   const createInvite = useMutation(api.households.createInvite)
+  const updateMyName = useMutation(api.households.updateMyName)
+  const [profileName, setProfileName] = useState<string | null>(null)
+  const [profileMessage, saveProfileAction] = useActionState(
+    async (_previousMessage: string, formData: FormData) => {
+      const name = formData.get('name')
+      if (typeof name !== 'string') return t.somethingWentWrong
+      try {
+        await updateMyName({ name })
+        setProfileName(name.trim())
+        return t.yourNameSaved
+      } catch (error) {
+        return userErrorMessage(error, language, t.updateNameError)
+      }
+    },
+    '',
+  )
   const [nameMessage, saveNameAction] = useActionState(
     async (_previousMessage: string, formData: FormData) => {
       const name = formData.get('name')
@@ -212,6 +228,37 @@ export function Household({ signOutAction }: { signOutAction: () => Promise<void
         <div {...stylex.props(styles.layout, !canManageHousehold && styles.singleColumn)}>
           <section {...stylex.props(styles.card)}>
             <h2 {...stylex.props(styles.sectionTitle)}>{t.people}</h2>
+            {data && (
+              <form action={saveProfileAction}>
+                <label {...stylex.props(styles.fieldLabel)} htmlFor="your-name">
+                  {t.yourName}
+                </label>
+                <p {...stylex.props(styles.copy)} id="your-name-help">
+                  {t.yourNameHelp}
+                </p>
+                <div {...stylex.props(styles.formRow)}>
+                  <input
+                    {...stylex.props(styles.input)}
+                    id="your-name"
+                    name="name"
+                    autoComplete="name"
+                    aria-describedby="your-name-help"
+                    value={
+                      profileName ?? data.members.find((member) => member.isCurrentUser)?.name ?? ''
+                    }
+                    onChange={(event) => setProfileName(event.target.value)}
+                    maxLength={100}
+                    required
+                  />
+                  <SaveNameButton />
+                </div>
+                {profileMessage && (
+                  <p {...stylex.props(styles.status)} aria-live="polite" role="status">
+                    {profileMessage}
+                  </p>
+                )}
+              </form>
+            )}
             {canManageHousehold ? (
               <form action={saveNameAction}>
                 <label {...stylex.props(styles.fieldLabel)} htmlFor="household-name">

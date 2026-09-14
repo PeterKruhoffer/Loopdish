@@ -1,2 +1,6 @@
 /* English source strings are the localization keys. */
 "LoopDish" = "LoopDish";
+"Your name" = "Your name";
+"This is the name others in your household see." = "This is the name others in your household see.";
+"Your name is saved." = "Your name is saved.";
+"Use a name between 1 and 100 characters." = "Use a name between 1 and 100 characters.";

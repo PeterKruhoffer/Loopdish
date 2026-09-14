@@ -158,6 +158,10 @@ final class Store: ObservableObject {
         await perform { try await client.mutation("households:rename", with: ["name": name]) }
     }
 
+    func updateMyName(_ name: String) async -> Bool {
+        await perform { try await client.mutation("households:updateMyName", with: ["name": name]) }
+    }
+
     func createInvite() async -> URL? {
         var url: URL?
         await perform {

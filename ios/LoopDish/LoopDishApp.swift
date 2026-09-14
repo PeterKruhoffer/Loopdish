@@ -327,16 +327,63 @@ struct HouseholdView: View {
     @EnvironmentObject private var store: Store
     @AppStorage("language") private var language = Locale.current.language.languageCode?.identifier == "da" ? "da" : "en"
     @State private var name = ""
+    @State private var profileName: String?
+    @State private var profileSaved = false
+    @FocusState private var editingProfile: Bool
     @State private var inviteURL: URL?
     @State private var link = ""
     @State private var inspectedInvite: Invite?
     @State private var inspectedID: String?
     @State private var signOut = false
+
+    private var currentName: String { store.household?.members.first(where: \.isCurrentUser)?.name ?? "" }
+    private var trimmedProfileName: String {
+        (profileName ?? currentName).trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     var body: some View {
         Page(title: "Your household") {
             Picker("Language", selection: $language) { Text("English").tag("en"); Text("Dansk").tag("da") }.pickerStyle(.segmented)
             if let details = store.household {
                 Text(details.household?.name ?? "Our home").font(.title.bold())
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Your name").font(.headline)
+                    Text("This is the name others in your household see.").font(.callout).foregroundStyle(.secondary)
+                    TextField("Your name", text: Binding(
+                        get: { profileName ?? currentName },
+                        set: { profileName = $0; profileSaved = false }
+                    ))
+                        .textFieldStyle(.roundedBorder)
+                        .textContentType(.name)
+                        .textInputAutocapitalization(.words)
+                        .autocorrectionDisabled()
+                        .focused($editingProfile)
+                        .disabled(store.busy)
+                        .accessibilityIdentifier("profile-name")
+                    if trimmedProfileName.utf16.count > 100 {
+                        Text("Use a name between 1 and 100 characters.").font(.caption).foregroundStyle(.red)
+                    }
+                    Button {
+                        editingProfile = false
+                        profileSaved = false
+                        let value = trimmedProfileName
+                        Task {
+                            if await store.updateMyName(value) {
+                                profileName = value
+                                profileSaved = true
+                            }
+                        }
+                    } label: {
+                        Text("Save name").frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(PrimaryButton())
+                    .disabled(trimmedProfileName.isEmpty || trimmedProfileName.utf16.count > 100 || store.busy)
+                    .accessibilityIdentifier("save-profile-name")
+                    if profileSaved {
+                        Text("Your name is saved.").font(.callout).foregroundStyle(Palette.ink)
+                            .accessibilityIdentifier("profile-name-saved")
+                    }
+                }
                 ForEach(Array(details.members.enumerated()), id: \.offset) { _, member in
                     HStack { Image(systemName: "person.crop.circle"); Text(member.name); Spacer(); Text(member.role).font(.caption) }
                 }
@@ -368,6 +415,9 @@ struct HouseholdView: View {
             } else { ProgressView() }
             Button("Sign out", role: .destructive) { signOut = true }.disabled(store.busy)
         }.onChange(of: store.household?.household?.name, initial: true) { _, value in name = value ?? "" }
+            .onChange(of: currentName) { oldValue, _ in
+                if profileName == oldValue { profileName = nil; profileSaved = false }
+            }
             .confirmationDialog("Sign out of LoopDish?", isPresented: $signOut) { Button("Sign out", role: .destructive) { Task { await store.signOut() } } }
     }
 }

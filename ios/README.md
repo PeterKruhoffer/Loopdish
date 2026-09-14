@@ -1,8 +1,10 @@
 # LoopDish for iOS
 
-Native SwiftUI client for iOS 17 and later. It calls the existing Convex backend with the same WorkOS identity as the website. No migration, extra database, web view, or backend deployment is required.
+Native SwiftUI client for iOS 17 and later. It calls the existing Convex backend with the same WorkOS identity as the website. No migration, extra database, or web view is required. Name editing requires the backend's `households:updateMyName` mutation to be deployed before distributing the updated app.
 
 The app includes live weekly planning, dish creation and search, dinner completion and history, household settings and invitation sharing/acceptance, and AI dish/week suggestions. Cream, coral, green, and rounded cards follow the website. Native tabs, sheets, confirmation dialogs, and the share sheet replace browser controls. Danish translations cover screen controls; backend errors retain the server's English messages.
+
+Under Household, owners and members can edit their own display name. Names use the same saved value as the website, trim surrounding whitespace, and accept 1–100 UTF-16 code units. Failed saves retain the draft. Sign-up continues to use the identity provider's name when available.
 
 ## Run on a Mac
 
@@ -50,7 +52,7 @@ For manual inspection, add `--fixture populated` to the scheme's Run arguments, 
 xcrun simctl launch booted com.loopdish.ios --fixture populated --fixture-language en
 ```
 
-Other fixtures are `empty`, `completed`, `error`, `loading`, `signedOut`, and `restoring`. The last holds the real restoration splash for inspection without delaying normal startup. Remove these arguments to use the configured backend. Fixtures are excluded from Release builds. Generic simulator Release builds can be checked with:
+Other fixtures are `member`, `empty`, `completed`, `error`, `loading`, `signedOut`, and `restoring`. The `member` fixture shows name editing without owner controls. The last holds the real restoration splash for inspection without delaying normal startup. Remove these arguments to use the configured backend. Fixtures are excluded from Release builds. Generic simulator Release builds can be checked with:
 
 ```sh
 xcodebuild -project ios/LoopDish.xcodeproj -scheme LoopDish \

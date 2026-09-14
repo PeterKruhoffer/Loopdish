@@ -18,6 +18,51 @@ final class LoopDishUITests: XCTestCase {
         add(attachment)
     }
 
+    func testProfileNameForOwnerAndMember() {
+        var app = launch("populated")
+        app.tabBars.buttons["Household"].tap()
+        XCTAssertEqual(app.textFields["profile-name"].value as? String, "Alex")
+        XCTAssertTrue(app.textFields["Household name"].exists)
+        capture("profile-owner-en")
+        app.terminate()
+
+        app = launch("member", language: "da")
+        app.tabBars.buttons["Husstand"].tap()
+        let field = app.textFields["profile-name"]
+        let save = app.buttons["save-profile-name"]
+        XCTAssertEqual(field.value as? String, "Sofie Østergaard")
+        XCTAssertEqual(save.label, "Gem navn")
+        XCTAssertFalse(app.textFields["Husstandens navn"].exists)
+        XCTAssertFalse(app.buttons["Opret invitationslink"].exists)
+        capture("profile-member-da")
+        field.tap()
+        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: "Sofie Østergaard".count))
+        field.typeText("   ")
+        XCTAssertFalse(save.isEnabled)
+        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 3))
+        field.typeText(String(repeating: "a", count: 101))
+        XCTAssertFalse(save.isEnabled)
+        XCTAssertTrue(app.staticTexts["Brug et navn på mellem 1 og 100 tegn."].exists)
+        capture("profile-name-too-long-da")
+        field.typeText(XCUIKeyboardKey.delete.rawValue)
+        XCTAssertTrue(save.isEnabled)
+        save.tap()
+        XCTAssertTrue(app.staticTexts["Simulator fixtures are read-only. No request was sent."].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["profile-name-saved"].exists)
+        XCTAssertEqual(field.value as? String, String(repeating: "a", count: 100))
+        capture("profile-name-save-error-da")
+    }
+
+    func testProfileNameAtLargeDynamicType() {
+        let app = launch("member", language: "da", large: true)
+        app.tabBars.buttons["Husstand"].tap()
+        XCTAssertTrue(app.staticTexts["Dit navn"].exists)
+        capture("profile-member-da-accessibility")
+        for _ in 0..<5 where !app.buttons["save-profile-name"].isHittable { app.swipeUp() }
+        XCTAssertTrue(app.buttons["save-profile-name"].isHittable)
+        capture("profile-member-da-accessibility-scrolled")
+    }
+
     func testPopulatedAndSheets() {
         let app = launch("populated")
         XCTAssertTrue(app.buttons["We ate this"].waitForExistence(timeout: 10))

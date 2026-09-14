@@ -15,6 +15,41 @@ afterEach(() => {
 })
 
 describe('LoopDish dinner flow', () => {
+  it('lets owners and members change only their own name and keeps it after later activity', async () => {
+    const test = convexTest(schema, modules)
+    const owner = test.withIdentity({ subject: 'owner', name: 'Original Owner' })
+    const member = test.withIdentity({ subject: 'member', name: 'Original Member' })
+    await owner.mutation(api.households.updateMyName, { name: '  Ægir Jensen  ' })
+    const inviteId = await owner.mutation(api.households.createInvite, {})
+    await member.mutation(api.households.acceptInvite, { inviteId })
+    await member.mutation(api.households.updateMyName, { name: 'Sofie Holm' })
+    await member.mutation(api.dishes.add, { name: 'Soup' })
+    const data = await owner.query(api.households.get, {})
+    expect(data.household?.name).toBe('Our home')
+    expect(data.members).toMatchObject([
+      { name: 'Ægir Jensen', role: 'owner', isCurrentUser: true },
+      { name: 'Sofie Holm', role: 'member', isCurrentUser: false },
+    ])
+  })
+
+  it('validates names before creating a household and requires authentication', async () => {
+    const test = convexTest(schema, modules)
+    await expect(test.mutation(api.households.updateMyName, { name: 'Alex' })).rejects.toThrow(
+      'Sign in to use LoopDish',
+    )
+    const user = test.withIdentity({ subject: 'new-user' })
+    for (const name of ['   ', 'a'.repeat(101)]) {
+      await expect(user.mutation(api.households.updateMyName, { name })).rejects.toThrow(
+        'Use a name between 1 and 100 characters',
+      )
+    }
+    expect((await user.query(api.households.get, {})).household).toBeNull()
+    for (const name of ['Å', 'b'.repeat(100)]) {
+      await user.mutation(api.households.updateMyName, { name })
+      expect((await user.query(api.households.get, {})).members[0].name).toBe(name)
+    }
+  })
+
   it('requires authentication', async () => {
     const t = convexTest(schema, modules)
 

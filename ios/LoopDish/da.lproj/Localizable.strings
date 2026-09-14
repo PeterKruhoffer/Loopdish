@@ -49,6 +49,10 @@
 "Language" = "Sprog";
 "Household name" = "Husstandens navn";
 "Save name" = "Gem navn";
+"Your name" = "Dit navn";
+"This is the name others in your household see." = "Det er det navn, andre i din husstand ser.";
+"Your name is saved." = "Dit navn er gemt.";
+"Use a name between 1 and 100 characters." = "Brug et navn på mellem 1 og 100 tegn.";
 "Create invite link" = "Opret invitationslink";
 "Share invitation" = "Del invitation";
 "Invite links expire after seven days." = "Invitationslinks udløber efter syv dage.";

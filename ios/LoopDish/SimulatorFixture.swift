@@ -3,7 +3,7 @@ import Foundation
 
 /// Opt-in, read-only fixtures for native simulator UI tests. Never bundled in Release.
 enum SimulatorFixture: String {
-    case populated, empty, completed, error, loading, signedOut, restoring
+    case populated, member, empty, completed, error, loading, signedOut, restoring
 
     static var current: Self? {
         let arguments = ProcessInfo.processInfo.arguments
@@ -31,8 +31,11 @@ enum SimulatorFixture: String {
             plannedMeals: self == .empty ? [] : [Meal(_id: "m1", dishId: "d1", dishName: "Roasted tomato pasta", date: "2026-09-11", completedAt: self == .completed ? 1789131600000 : nil)],
             recentMeals: self == .empty ? [] : [DinnerEvent(_id: "e1", dishName: "Roasted tomato pasta", eatenOn: "2026-09-08")])
         store.household = HouseholdDetails(household: self == .empty ? nil : home,
-            members: self == .empty ? [] : [Member(id: "u1", name: "Alex", email: nil, role: "owner", isCurrentUser: true)],
-            canManageHousehold: true)
+            members: self == .empty ? [] : [
+                Member(id: "u1", name: "Alex", email: nil, role: "owner", isCurrentUser: self != .member),
+                Member(id: "u2", name: "Sofie Østergaard", email: nil, role: "member", isCurrentUser: self == .member)
+            ],
+            canManageHousehold: self != .member)
         if self == .error { store.error = "The network connection was lost. Please try again." }
     }
 }

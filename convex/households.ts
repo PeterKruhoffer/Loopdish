@@ -84,6 +84,23 @@ export const rename = mutation({
   },
 })
 
+export const updateMyName = mutation({
+  args: { name: v.string() },
+  handler: async (ctx, args) => {
+    const userSlug = await requireHouseholdSlug(ctx)
+    const name = args.name.trim()
+    if (!name || name.length > 100) {
+      throw new ConvexError('Use a name between 1 and 100 characters')
+    }
+    await getOrCreateHousehold(ctx, userSlug)
+    const membership = await ctx.db
+      .query('householdMembers')
+      .withIndex('by_user', (query) => query.eq('userSlug', userSlug))
+      .unique()
+    await ctx.db.patch(membership!._id, { name })
+  },
+})
+
 export const createInvite = mutation({
   args: {},
   handler: async (ctx) => {
