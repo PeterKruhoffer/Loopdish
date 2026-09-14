@@ -134,21 +134,21 @@ struct WeekView: View {
                 Spacer()
                 Button { store.changeWeek(1) } label: { Image(systemName: "chevron.right").frame(width: 44, height: 44) }.accessibilityLabel("Next week")
             }.disabled(store.busy)
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(store.days, id: \.self) { day in
-                        let selected = DinnerDates.key(day) == DinnerDates.key(store.selectedDate)
-                        Button { store.selectedDate = day } label: {
-                            VStack(spacing: 8) {
-                                Text(day, format: .dateTime.weekday(.narrow)).font(.caption)
-                                Text(day, format: .dateTime.day()).font(.headline)
-                                Circle().fill(store.dashboard?.plannedMeals.contains(where: { $0.date == DinnerDates.key(day) }) == true ? Palette.coral : .clear).frame(width: 5, height: 5)
-                            }.frame(minWidth: 44).padding(.vertical, 12)
-                                .foregroundStyle(selected ? Palette.cream : Palette.ink)
-                                .background(selected ? Palette.ink : Palette.paper, in: RoundedRectangle(cornerRadius: 22))
-                        }.accessibilityLabel(day.formatted(.dateTime.weekday(.wide).day().month(.wide).year().locale(locale)))
-                            .accessibilityAddTraits(selected ? .isSelected : [])
-                    }
+            HStack(spacing: 8) {
+                ForEach(store.days, id: \.self) { day in
+                    let selected = DinnerDates.key(day) == DinnerDates.key(store.selectedDate)
+                    Button { store.selectedDate = day } label: {
+                        VStack(spacing: 8) {
+                            Text(day, format: .dateTime.weekday(.narrow)).font(.caption)
+                            Text(day, format: .dateTime.day()).font(.headline)
+                            Circle().fill(store.dashboard?.plannedMeals.contains(where: { $0.date == DinnerDates.key(day) }) == true ? Palette.coral : .clear).frame(width: 5, height: 5)
+                        }.lineLimit(1).minimumScaleFactor(0.5)
+                            .frame(minWidth: 0, maxWidth: .infinity).padding(.vertical, 12)
+                            .foregroundStyle(selected ? Palette.cream : Palette.ink)
+                            .background(selected ? Palette.ink : Palette.paper, in: RoundedRectangle(cornerRadius: 22))
+                    }.accessibilityLabel(day.formatted(.dateTime.weekday(.wide).day().month(.wide).year().locale(locale)))
+                        .accessibilityIdentifier("week-day-\(DinnerDates.key(day))")
+                        .accessibilityAddTraits(selected ? .isSelected : [])
                 }
             }
             if let dashboard = store.dashboard {

@@ -97,6 +97,35 @@ final class LoopDishUITests: XCTestCase {
         capture("week-completed-da-accessibility-scrolled")
     }
 
+    func testWeekDaysFitInsidePagePadding() {
+        for large in [false, true] {
+            let app = launch("empty", language: "da", large: large)
+            let days = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH 'week-day-'"))
+            XCTAssertTrue(days.firstMatch.waitForExistence(timeout: 10))
+            XCTAssertEqual(days.count, 7)
+            let bounds = app.windows.firstMatch.frame
+            var previous: CGRect?
+            for day in days.allElementsBoundByIndex {
+                XCTAssertGreaterThanOrEqual(day.frame.minX, bounds.minX + 19.5)
+                XCTAssertLessThanOrEqual(day.frame.maxX, bounds.maxX - 19.5)
+                XCTAssertTrue(day.isHittable)
+                if let previous {
+                    XCTAssertEqual(day.frame.minX - previous.maxX, 8, accuracy: 1)
+                    XCTAssertEqual(day.frame.width, previous.width, accuracy: 1)
+                }
+                previous = day.frame
+            }
+            days.element(boundBy: 0).tap()
+            XCTAssertTrue(days.element(boundBy: 0).isSelected)
+            capture(large ? "week-days-da-large-monday" : "week-days-da-monday")
+            days.element(boundBy: 6).tap()
+            XCTAssertTrue(days.element(boundBy: 6).isSelected)
+            XCTAssertFalse(days.element(boundBy: 0).isSelected)
+            capture(large ? "week-days-da-large-sunday" : "week-days-da-sunday")
+            app.terminate()
+        }
+    }
+
     func testInAppLanguageChangesDayAccessibilityLabels() {
         let app = launch("completed")
         XCTAssertTrue(app.staticTexts["Dinner enjoyed"].waitForExistence(timeout: 10))
