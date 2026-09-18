@@ -52,7 +52,7 @@ For manual inspection, add `--fixture populated` to the scheme's Run arguments, 
 xcrun simctl launch booted com.loopdish.ios --fixture populated --fixture-language en
 ```
 
-Other fixtures are `member`, `empty`, `completed`, `error`, `loading`, `signedOut`, and `restoring`. The `member` fixture shows name editing without owner controls. The last holds the real restoration splash for inspection without delaying normal startup. Remove these arguments to use the configured backend. Fixtures are excluded from Release builds. Generic simulator Release builds can be checked with:
+Other fixtures are `member`, `empty`, `completed`, `error`, `loading`, `signedOut`, `restoring`, and `emptySuggestions`. The `member` fixture shows name editing without owner controls. The `restoring` fixture holds the real restoration splash for inspection without delaying normal startup. The `emptySuggestions` fixture shows the no-new-dishes message under Dishes → Ideas. Remove these arguments to use the configured backend. Fixtures are excluded from Release builds. Generic simulator Release builds can be checked with:
 
 ```sh
 xcodebuild -project ios/LoopDish.xcodeproj -scheme LoopDish \
@@ -82,6 +82,8 @@ Tests instantiate and render the compiled launch storyboard at 320×568, 402×87
 ## Distribution still needs Apple setup
 
 The app includes a 1024-pixel app icon and a required-reason privacy declaration for its own UserDefaults preferences. The signed Release device archive at `.amp/LoopDish-build2.xcarchive`, version 1.0 build 2, was uploaded successfully to App Store Connect for internal TestFlight testing on September 11, 2026. Build 2 corrects the placeholder Convex URL in build 1 to the regional production URL copied from the Convex dashboard. An anonymous native SDK subscription reached production and received its expected authentication error; authenticated data loading still requires a user check. Apple processing and tester assignment must complete before installation. This build is restricted to internal testing, not external testers or App Store distribution.
+
+Version 1.0 build 4 was uploaded successfully for internal TestFlight on September 18, 2026, using Xcode 27.0 with automatic build-number management. The archive is `.amp/release-build4/LoopDish.xcarchive`; upload logs, test results, and inspected screenshots are under `.amp/release-build4/`. Six unit tests, ten UI tests, and 22 backend tests passed; the Release simulator build and device archive also succeeded. Inspection covered weekday padding, owner/member name editing, Danish accessibility text, and the new empty-suggestions message. The local production configuration was preserved and verified against the archive. The production name mutation returned the expected sign-in error to an unauthenticated probe. Apple reported the upload as processing; installation availability and tester assignment were not confirmed. Physical-device and authenticated end-to-end checks above remain outstanding.
 
 For an App Store release, a privacy policy, account deletion, and review of Apple's current sign-in requirements remain. Sign-out clears the local Keychain session; it does not revoke other devices' sessions. Invitation links currently open the website; users can paste them into the native app. Universal Links need an associated domain entitlement and an Apple app-site-association file on the production website.
 

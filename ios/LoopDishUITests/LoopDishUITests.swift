@@ -97,6 +97,22 @@ final class LoopDishUITests: XCTestCase {
         capture("household-en")
     }
 
+    func testEmptyDishSuggestions() {
+        let message = "No new dishes this time. We tried twice, but found nothing new to add to your saved dishes."
+        for fixture in ["populated", "emptySuggestions"] {
+            let app = launch(fixture)
+            app.tabBars.buttons["Dishes"].tap()
+            app.buttons["Ideas"].tap()
+            XCTAssertTrue(app.buttons["Generate suggestions"].waitForExistence(timeout: 5))
+            XCTAssertEqual(app.staticTexts[message].exists, fixture == "emptySuggestions")
+            XCTAssertFalse(app.buttons["Save dish"].exists)
+            capture("dish-suggestions-\(fixture)-en")
+            app.buttons["Done"].tap()
+            XCTAssertTrue(app.buttons["Ideas"].waitForExistence(timeout: 5))
+            app.terminate()
+        }
+    }
+
     func testEmptyAndCompleted() {
         var app = launch("empty")
         XCTAssertTrue(app.buttons["Plan dinner"].waitForExistence(timeout: 10))
