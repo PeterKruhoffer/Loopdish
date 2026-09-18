@@ -300,6 +300,10 @@ struct SuggestionsView: View {
             Button("Generate suggestions") { Task { await store.generate(weekly: weekly, language: language) } }
                 .buttonStyle(PrimaryButton()).disabled(store.busy)
             if let result = store.suggestions, result.kind == (weekly ? "weekly_plan" : "new_dishes") {
+                if !weekly && result.dishes?.isEmpty == true && !store.busy {
+                    Text("No new dishes this time. We tried twice, but found nothing new to add to your saved dishes.")
+                        .foregroundStyle(.secondary)
+                }
                 ForEach(Array((result.meals ?? result.dishes ?? []).enumerated()), id: \.offset) { _, item in
                     VStack(alignment: .leading, spacing: 10) {
                         if let date = item.date { Text(date).font(.caption) }

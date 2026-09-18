@@ -115,6 +115,61 @@ describe('LoopDish dinner flow', () => {
     })
   })
 
+  it.each([
+    { first: ['Soup'], second: [], expected: ['Soup'], calls: 1 },
+    { first: ['tacos'], second: ['Soup'], expected: ['Soup'], calls: 2 },
+    { first: [], second: ['Tacos'], expected: [], calls: 2 },
+    { first: ['Tacos', 'tacos'], second: [], expected: [], calls: 2 },
+  ])(
+    'handles new dishes $first then $second with one usage reservation',
+    async ({ first, second, expected, calls }) => {
+      const t = convexTest(schema, modules).withIdentity({ subject: 'user-one' })
+      await t.mutation(api.dishes.add, { name: 'Tacos' })
+      vi.stubEnv('CLOUDFLARE_ACCOUNT_ID', 'test-account')
+      vi.stubEnv('CLOUDFLARE_AUTH_TOKEN', 'test-token')
+      const response = (names: string[]) =>
+        Response.json({
+          success: true,
+          result: {
+            response: JSON.stringify({
+              dishes: names.map((name) => ({
+                name,
+                notes: 'Serve with bread',
+                reason: 'Something different',
+              })),
+            }),
+          },
+        })
+      const fetch = vi
+        .fn()
+        .mockResolvedValueOnce(response(first))
+        .mockResolvedValueOnce(response(second))
+      vi.stubGlobal('fetch', fetch)
+
+      const result = await t.action(api.suggestions.generate, {
+        ...week,
+        kind: 'new_dishes',
+        language: 'da',
+      })
+      expect(result).toEqual({
+        kind: 'new_dishes',
+        dishes: expected.map((name) => ({
+          name,
+          notes: 'Serve with bread',
+          reason: 'Something different',
+        })),
+      })
+      expect(fetch).toHaveBeenCalledTimes(calls)
+      const usage = await t.run((ctx) => ctx.db.query('aiSuggestionUsage').unique())
+      expect(usage?.count).toBe(1)
+      if (calls === 2) {
+        expect(JSON.parse(fetch.mock.calls[1][1].body).messages[1].content).toContain(
+          'previous attempt produced no new dishes',
+        )
+      }
+    },
+  )
+
   it('keeps two to five distinct new dishes from a model response', async () => {
     const t = convexTest(schema, modules).withIdentity({ subject: 'user-one' })
     await t.mutation(api.dishes.add, { name: 'Tacos' })

@@ -61,6 +61,7 @@ const styles = stylex.create({
     backgroundColor: '#f8d9ce',
     fontSize: 12,
   },
+  empty: { marginTop: 12, color: colors.muted, fontSize: 14 },
   results: { marginTop: 24 },
   resultHeader: {
     display: 'flex',
@@ -158,7 +159,7 @@ export function DishSuggestions({
   const { language, t } = useI18n()
   const generate = useAction(api.suggestions.generate)
   const [suggestions, generateAction, isGenerating] = useActionState(
-    async (current: { dishes: DishSuggestion[]; message: string }) => {
+    async (current: { dishes: DishSuggestion[]; message: string; empty: boolean }) => {
       try {
         const result = await generate({
           kind: 'new_dishes',
@@ -166,12 +167,18 @@ export function DishSuggestions({
           endDate: week[6].date,
           language,
         })
-        return result.kind === 'new_dishes' ? { dishes: result.dishes, message: '' } : current
+        return result.kind === 'new_dishes'
+          ? { dishes: result.dishes, message: '', empty: result.dishes.length === 0 }
+          : current
       } catch (error) {
-        return { ...current, message: userErrorMessage(error, language, t.suggestionsError) }
+        return {
+          ...current,
+          empty: false,
+          message: userErrorMessage(error, language, t.suggestionsError),
+        }
       }
     },
-    { dishes: [], message: '' },
+    { dishes: [], message: '', empty: false },
   )
   const [savedDishes, saveDishAction, isSavingDish] = useActionState(
     async (current: SavedDishState, dish: DishSuggestion): Promise<SavedDishState> => {
@@ -206,6 +213,11 @@ export function DishSuggestions({
         />
       </form>
       <Status>{suggestions.message}</Status>
+      {suggestions.empty && !isGenerating && (
+        <p {...stylex.props(styles.empty)} role="status" aria-live="polite">
+          {t.noNewDishes}
+        </p>
+      )}
 
       {suggestions.dishes.length > 0 && (
         <div {...stylex.props(styles.results)}>

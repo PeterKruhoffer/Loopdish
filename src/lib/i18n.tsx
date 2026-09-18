@@ -118,6 +118,8 @@ const copy = {
     suggestAPlan: 'Suggest a plan',
     weekSuggestionsCopy: 'Fill the selected week from your saved dishes, with up to two new ones.',
     thinking: 'Thinking…',
+    noNewDishes:
+      'No new dishes this time. We tried twice, but found nothing new to add to your saved dishes.',
     suggestionsError:
       "We couldn't make suggestions right now. Your dishes and plan haven't changed. Try again.",
     saveSuggestionError:
@@ -257,6 +259,8 @@ const copy = {
     suggestAPlan: 'Foreslå en madplan',
     weekSuggestionsCopy: 'Udfyld den valgte uge med gemte retter og op til to nye.',
     thinking: 'Tænker…',
+    noNewDishes:
+      'Ingen nye retter denne gang. Vi prøvede to gange, men fandt ikke noget nyt at føje til dine gemte retter.',
     suggestionsError:
       'Vi kunne ikke lave forslag lige nu. Jeres retter og madplan er ikke ændret. Prøv igen.',
     saveSuggestionError: 'Vi kunne ikke gemme forslaget. Jeres retter er ikke ændret. Prøv igen.',
