@@ -86,7 +86,7 @@ struct RequestStatus: View {
         if let error = store.error {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Something went wrong").font(.headline)
-                Text(error).font(.callout)
+                Text(LocalizedStringKey(error)).font(.callout)
                 Button("OK") { store.error = nil }
             }.padding().frame(maxWidth: .infinity, alignment: .leading)
                 .background(Palette.mint, in: RoundedRectangle(cornerRadius: 16))
@@ -406,7 +406,7 @@ struct HouseholdView: View {
                             guard let id = DinnerDates.inviteID(link, webURL: store.configuration.webURL) else { store.error = "Paste an invitation from your LoopDish website."; return }
                             await store.perform {
                                 let invite = try await store.inspectInvite(id)
-                                guard invite?.available == true else { store.error = "This invitation is unavailable or expired."; return }
+                                guard invite?.available == true else { store.error = "This invitation is unavailable or expired. Ask for a new invitation link."; return }
                                 inspectedInvite = invite; inspectedID = id
                             }
                         }

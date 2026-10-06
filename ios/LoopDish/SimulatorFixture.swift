@@ -1,9 +1,10 @@
 #if DEBUG
+import ConvexMobile
 import Foundation
 
 /// Opt-in, read-only fixtures for native simulator UI tests. Never bundled in Release.
 enum SimulatorFixture: String {
-    case populated, member, empty, completed, error, loading, signedOut, restoring, emptySuggestions
+    case populated, member, empty, completed, error, duplicateDish, loading, signedOut, restoring, emptySuggestions
 
     static var current: Self? {
         let arguments = ProcessInfo.processInfo.arguments
@@ -39,7 +40,10 @@ enum SimulatorFixture: String {
         if self == .emptySuggestions {
             store.suggestions = Suggestions(kind: "new_dishes", dishes: [], meals: nil)
         }
-        if self == .error { store.error = "The network connection was lost. Please try again." }
+        if self == .error { store.error = ErrorMessage.text(for: URLError(.networkConnectionLost)) }
+        if self == .duplicateDish {
+            store.error = ErrorMessage.text(for: ClientError.ConvexError(data: #""Risengrød is already in your dishes""#))
+        }
     }
 }
 #endif

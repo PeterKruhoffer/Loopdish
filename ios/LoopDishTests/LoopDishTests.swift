@@ -1,8 +1,52 @@
 import XCTest
 import UIKit
+import ConvexMobile
 @testable import LoopDish
 
 final class LoopDishTests: XCTestCase {
+    func testDuplicateDishErrorDecodesJSONWithoutShowingSDKDetails() throws {
+        for name in ["Risengrød", "Soup \"special\"\n🍲"] {
+            let data = String(decoding: try JSONEncoder().encode("\(name) is already in your dishes"), as: UTF8.self)
+            XCTAssertEqual(ErrorMessage.text(for: ClientError.ConvexError(data: data)),
+                           "This dish is already saved. You can choose it from your dishes.")
+        }
+    }
+
+    func testUnknownErrorsNeverExposeTechnicalDetails() {
+        let errors: [Error] = [
+            ClientError.ConvexError(data: "not JSON"),
+            ClientError.ConvexError(data: #"{"internal":"secret"}"#),
+            ClientError.ConvexError(data: #""Database failure: secret""#),
+            ClientError.ServerError(msg: "Stack trace: secret"),
+            ClientError.InternalError(msg: "Failed to decode: secret"),
+            NSError(domain: "secret", code: 123, userInfo: [NSLocalizedDescriptionKey: "secret"]),
+        ]
+        for error in errors {
+            XCTAssertEqual(ErrorMessage.text(for: error), "We couldn't complete that. Please try again.")
+        }
+        XCTAssertEqual(ErrorMessage.text(for: WorkOSAuthError.oauth("secret")),
+                       "Couldn't complete sign-in or sign-out. Please try again.")
+        XCTAssertEqual(ErrorMessage.text(for: URLError(.notConnectedToInternet)),
+                       "Couldn't connect to LoopDish. Check your internet connection and try again.")
+    }
+
+    func testKnownErrorsGiveAnActionAndDanishTranslation() throws {
+        let cases = [
+            ("Sign in to use LoopDish", "Please sign in to continue.", "Log ind for at fortsætte."),
+            ("That invite is no longer available", "This invitation is unavailable or expired. Ask for a new invitation link.", "Invitationen virker ikke længere. Bed om et nyt invitationslink."),
+            ("This household has used its five AI suggestions for the last 24 hours", "Your household has used all five suggestions for now. Please try again tomorrow.", "Jeres husstand har brugt alle fem forslag for nu. Prøv igen i morgen."),
+            ("Risengrød is already in your dishes", "This dish is already saved. You can choose it from your dishes.", "Retten er allerede gemt. Du kan vælge den under Retter."),
+        ]
+        let path = try XCTUnwrap(Bundle.main.path(forResource: "da", ofType: "lproj"))
+        let danish = try XCTUnwrap(Bundle(path: path))
+        for (server, english, translation) in cases {
+            let data = String(decoding: try JSONEncoder().encode(server), as: UTF8.self)
+            let key = ErrorMessage.text(for: ClientError.ConvexError(data: data))
+            XCTAssertEqual(key, english)
+            XCTAssertEqual(danish.localizedString(forKey: key, value: nil, table: nil), translation)
+        }
+    }
+
     @MainActor func testLaunchStoryboardResourcesLayoutAndBackground() throws {
         XCTAssertEqual(Bundle.main.object(forInfoDictionaryKey: "UILaunchStoryboardName") as? String, "LaunchScreen")
         for size in [CGSize(width: 320, height: 568), CGSize(width: 402, height: 874), CGSize(width: 1024, height: 1366)] {

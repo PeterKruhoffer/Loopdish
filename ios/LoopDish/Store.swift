@@ -60,7 +60,7 @@ final class Store: ObservableObject {
                 restoring = false
                 return
             }
-            error = failure.localizedDescription
+            error = ErrorMessage.text(for: failure)
         }
         restoring = false
     }
@@ -72,7 +72,7 @@ final class Store: ObservableObject {
         guard !busy else { return }
         busy = true
         defer { busy = false }
-        if case .failure(let failure) = await client.login() { error = failure.localizedDescription }
+        if case .failure(let failure) = await client.login() { error = ErrorMessage.text(for: failure) }
     }
 
     func signOut() async {
@@ -103,12 +103,12 @@ final class Store: ObservableObject {
         dashboardSubscription = client.subscribe(to: "dashboard:get", with: range, yielding: Dashboard.self)
             .receive(on: DispatchQueue.main)
             .sink(receiveCompletion: { [weak self] completion in
-                if case .failure(let failure) = completion { self?.error = failure.localizedDescription }
+                if case .failure(let failure) = completion { self?.error = ErrorMessage.text(for: failure) }
             }, receiveValue: { [weak self] in self?.dashboard = $0 })
         householdSubscription = client.subscribe(to: "households:get", yielding: HouseholdDetails.self)
             .receive(on: DispatchQueue.main)
             .sink(receiveCompletion: { [weak self] completion in
-                if case .failure(let failure) = completion { self?.error = failure.localizedDescription }
+                if case .failure(let failure) = completion { self?.error = ErrorMessage.text(for: failure) }
             }, receiveValue: { [weak self] in self?.household = $0 })
     }
 
@@ -132,7 +132,7 @@ final class Store: ObservableObject {
         busy = true
         defer { busy = false }
         do { try await operation(); return true }
-        catch { self.error = error.localizedDescription; return false }
+        catch { self.error = ErrorMessage.text(for: error); return false }
     }
 
     func addDish(name: String, notes: String) async -> Bool {

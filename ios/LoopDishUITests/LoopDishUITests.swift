@@ -47,7 +47,7 @@ final class LoopDishUITests: XCTestCase {
         field.typeText(XCUIKeyboardKey.delete.rawValue)
         XCTAssertTrue(save.isEnabled)
         save.tap()
-        XCTAssertTrue(app.staticTexts["Simulator fixtures are read-only. No request was sent."].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Du kan ikke gemme ændringer i denne demo. Intet blev sendt."].waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts["profile-name-saved"].exists)
         XCTAssertEqual(field.value as? String, String(repeating: "a", count: 100))
         capture("profile-name-save-error-da")
@@ -131,6 +131,7 @@ final class LoopDishUITests: XCTestCase {
     func testErrorAndLoading() {
         var app = launch("error")
         XCTAssertTrue(app.staticTexts["Something went wrong"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Couldn't connect to LoopDish. Check your internet connection and try again."].exists)
         capture("week-error-en")
         app.buttons["OK"].tap()
         XCTAssertFalse(app.staticTexts["Something went wrong"].exists)
@@ -138,6 +139,23 @@ final class LoopDishUITests: XCTestCase {
         app = launch("loading")
         XCTAssertTrue(app.buttons["Retry"].waitForExistence(timeout: 10))
         capture("week-loading-en")
+    }
+
+    func testDuplicateDishErrorInEnglishAndDanish() {
+        for language in ["en", "da"] {
+            let app = launch("duplicateDish", language: language, large: true)
+            let message = language == "da"
+                ? "Retten er allerede gemt. Du kan vælge den under Retter."
+                : "This dish is already saved. You can choose it from your dishes."
+            XCTAssertTrue(app.staticTexts[message].waitForExistence(timeout: 10))
+            XCTAssertFalse(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "ConvexError")).firstMatch.exists)
+            for _ in 0..<5 where !app.buttons["OK"].isHittable { app.swipeUp() }
+            XCTAssertTrue(app.buttons["OK"].isHittable)
+            capture("duplicate-dish-\(language)")
+            app.buttons["OK"].tap()
+            XCTAssertFalse(app.staticTexts[message].exists)
+            app.terminate()
+        }
     }
 
     func testDanishAndDynamicType() {
