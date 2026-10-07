@@ -1,6 +1,7 @@
 import Combine
 import ConvexMobile
 import Foundation
+import WidgetKit
 
 @MainActor
 final class Store: ObservableObject {
@@ -21,6 +22,7 @@ final class Store: ObservableObject {
     private var authSubscription: AnyCancellable?
     private var dashboardSubscription: AnyCancellable?
     private var householdSubscription: AnyCancellable?
+    private var widgetSubscription: AnyCancellable?
     var days: [Date] { DinnerDates.week(containing: weekAnchor) }
     var range: [String: ConvexEncodable?] {
         ["startDate": DinnerDates.key(days[0]), "endDate": DinnerDates.key(days[6])]
@@ -89,17 +91,63 @@ final class Store: ObservableObject {
     private func clearData() {
         dashboardSubscription = nil
         householdSubscription = nil
+        widgetSubscription = nil
+        if DinnerWidgetCache.write(nil) {
+            WidgetCenter.shared.reloadTimelines(ofKind: DinnerWidgetCache.kind)
+        }
         dashboard = nil
         household = nil
         suggestions = nil
         notice = nil
     }
 
-    func subscribe() {
+    func openToday() {
+        let now = Date()
+        selectedDate = now
+        weekAnchor = now
+        dashboard = nil
+        suggestions = nil
+        subscribe()
+    }
+
+    func syncWidgetLanguage(_ language: String) {
         #if DEBUG
         guard SimulatorFixture.current == nil else { return }
         #endif
+        guard let defaults = DinnerWidgetCache.defaults,
+              defaults.string(forKey: "language") != language else { return }
+        defaults.set(language, forKey: "language")
+        WidgetCenter.shared.reloadTimelines(ofKind: DinnerWidgetCache.kind)
+    }
+
+    func subscribe() {
+        #if DEBUG
+        if let fixture = SimulatorFixture.current {
+            if dashboard == nil { fixture.populate(self, resetNavigation: false) }
+            return
+        }
+        #endif
         guard signedIn else { return }
+        // Independent of weekAnchor: browsing another week must not replace today's cache.
+        let calendar = DinnerDates.calendar()
+        let now = Date()
+        let start = DinnerDates.key(now, calendar: calendar)
+        let end = DinnerDates.key(calendar.date(byAdding: .day, value: 6, to: now)!, calendar: calendar)
+        widgetSubscription = client.subscribe(to: "dashboard:get",
+            with: ["startDate": start, "endDate": end], yielding: Dashboard.self)
+            .receive(on: DispatchQueue.main)
+            .sink(receiveCompletion: { _ in
+                // Preserve the last synced plan when offline. Authentication loss clears it.
+            }, receiveValue: { [weak self] dashboard in
+                guard self?.signedIn == true else { return }
+                let data = DinnerWidgetData(startDay: start, endDay: end,
+                    dinners: dashboard.plannedMeals.map {
+                        .init(day: $0.date, name: $0.dishName, completed: $0.completedAt != nil)
+                    })
+                if DinnerWidgetCache.write(data) {
+                    WidgetCenter.shared.reloadTimelines(ofKind: DinnerWidgetCache.kind)
+                }
+            })
         dashboardSubscription = client.subscribe(to: "dashboard:get", with: range, yielding: Dashboard.self)
             .receive(on: DispatchQueue.main)
             .sink(receiveCompletion: { [weak self] completion in

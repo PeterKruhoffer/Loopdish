@@ -17,14 +17,21 @@ targets:
   LoopDish:
     type: application
     platform: iOS
-    sources: [LoopDish]
+    sources: [LoopDish, Shared]
+    entitlements:
+      path: Generated/LoopDish.entitlements
+      properties:
+        com.apple.security.application-groups: [group.com.loopdish.ios]
     dependencies:
       - package: ConvexMobile
+      - target: DinnerWidget
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.loopdish.ios
+        DEVELOPMENT_TEAM: 94985YFAN4
+        CODE_SIGN_IDENTITY: iPhone Developer
         MARKETING_VERSION: '1.0'
-        CURRENT_PROJECT_VERSION: '5'
+        CURRENT_PROJECT_VERSION: '6'
         GENERATE_INFOPLIST_FILE: YES
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     info:
@@ -41,6 +48,32 @@ targets:
           - CFBundleURLSchemes: [loopdish]
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
+  DinnerWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - DinnerWidget
+      - Shared
+      - LoopDish/Models.swift
+    entitlements:
+      path: Generated/DinnerWidget.entitlements
+      properties:
+        com.apple.security.application-groups: [group.com.loopdish.ios]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.loopdish.ios.dinner-widget
+        DEVELOPMENT_TEAM: 94985YFAN4
+        MARKETING_VERSION: '1.0'
+        CURRENT_PROJECT_VERSION: '6'
+        GENERATE_INFOPLIST_FILE: YES
+        APPLICATION_EXTENSION_API_ONLY: YES
+        SKIP_INSTALL: YES
+    info:
+      path: Generated/DinnerWidget-Info.plist
+      properties:
+        CFBundleDisplayName: LoopDish Dinner
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
   LoopDishTests:
     type: bundle.unit-test
     platform: iOS
@@ -61,10 +94,24 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.loopdish.ios.uitests
         GENERATE_INFOPLIST_FILE: YES
+  DinnerWidgetRenderTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - DinnerWidgetRenderTests
+      - DinnerWidget/DinnerWidgetView.swift
+      - Shared
+      - LoopDish/Models.swift
+    dependencies:
+      - target: LoopDish
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.loopdish.ios.widget-render-tests
+        GENERATE_INFOPLIST_FILE: YES
 schemes:
   LoopDish:
     build:
       targets:
         LoopDish: all
     test:
-      targets: [LoopDishTests, LoopDishUITests]
+      targets: [LoopDishTests, LoopDishUITests, DinnerWidgetRenderTests]

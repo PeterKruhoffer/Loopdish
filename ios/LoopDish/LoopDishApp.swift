@@ -43,6 +43,8 @@ struct AppRoot: View {
     @StateObject private var store: Store
     @AppStorage("language") private var language = Locale.current.language.languageCode?.identifier == "da" ? "da" : "en"
     @Environment(\.scenePhase) private var scenePhase
+    @State private var selectedTab = 0
+    @State private var widgetNavigationID = UUID()
 
     init(configuration: Configuration) { _store = StateObject(wrappedValue: Store(configuration: configuration)) }
 
@@ -50,12 +52,13 @@ struct AppRoot: View {
         Group {
             if store.restoring { LaunchSplash().ignoresSafeArea() }
             else if store.signedIn {
-                TabView {
-                    WeekView().tabItem { Label("Week", systemImage: "calendar") }
-                    DishesView().tabItem { Label("Dishes", systemImage: "fork.knife") }
-                    HistoryView().tabItem { Label("History", systemImage: "clock") }
-                    HouseholdView().tabItem { Label("Household", systemImage: "person.2") }
+                TabView(selection: $selectedTab) {
+                    WeekView().tabItem { Label("Week", systemImage: "calendar") }.tag(0)
+                    DishesView().tabItem { Label("Dishes", systemImage: "fork.knife") }.tag(1)
+                    HistoryView().tabItem { Label("History", systemImage: "clock") }.tag(2)
+                    HouseholdView().tabItem { Label("Household", systemImage: "person.2") }.tag(3)
                 }
+                .id(widgetNavigationID)
             } else {
                 VStack(alignment: .leading, spacing: 24) {
                     Label("LoopDish", systemImage: "fork.knife.circle").font(.title2.bold())
@@ -75,6 +78,14 @@ struct AppRoot: View {
         .tint(Palette.ink)
         .preferredColorScheme(.light)
         .task { await store.restore() }
+        .task(id: language) { store.syncWidgetLanguage(language) }
+        .onOpenURL { url in
+            guard DinnerWidgetCache.isTodayURL(url) else { return }
+            selectedTab = 0
+            // Recreate tab content to dismiss any sheet left open for a different day.
+            widgetNavigationID = UUID()
+            store.openToday()
+        }
         .onChange(of: scenePhase) { _, phase in if phase == .active { store.subscribe() } }
     }
 }

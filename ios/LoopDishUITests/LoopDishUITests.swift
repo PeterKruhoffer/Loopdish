@@ -18,6 +18,81 @@ final class LoopDishUITests: XCTestCase {
         add(attachment)
     }
 
+    private func assertToday(_ app: XCUIApplication, file: StaticString = #filePath, line: UInt = #line) {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        let today = app.buttons["week-day-\(formatter.string(from: Date()))"]
+        XCTAssertTrue(today.waitForExistence(timeout: 5), file: file, line: line)
+        XCTAssertTrue(today.isSelected, file: file, line: line)
+        XCTAssertTrue(app.tabBars.buttons["Week"].isSelected, file: file, line: line)
+        XCTAssertTrue(app.buttons["Plan dinner"].waitForExistence(timeout: 5), file: file, line: line)
+        XCTAssertFalse(app.buttons["Retry"].exists, file: file, line: line)
+    }
+
+    @MainActor private func openWarm(_ app: XCUIApplication, path: String = "today") async {
+        let safari = XCUIApplication(bundleIdentifier: "com.apple.mobilesafari")
+        safari.open(URL(string: "loopdish://dinner/\(path)")!)
+        if safari.buttons["Open"].waitForExistence(timeout: 3) { safari.buttons["Open"].tap() }
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 5))
+    }
+
+    @MainActor func testWidgetURLColdAndWarmFromAnotherWeekAndTab() async {
+        let app = launch("populated")
+        app.buttons["Previous week"].tap()
+        app.tabBars.buttons["History"].tap()
+        await openWarm(app)
+        assertToday(app)
+        capture("widget-route-warm-today")
+        app.buttons["Plan dinner"].tap()
+        XCTAssertTrue(app.buttons.containing(.staticText, identifier: "Crispy chickpea bowls").firstMatch.waitForExistence(timeout: 5))
+        capture("widget-route-today-picker")
+        app.terminate()
+        app.open(URL(string: "loopdish://dinner/today")!)
+        assertToday(app)
+        capture("widget-route-cold-today")
+    }
+
+    @MainActor func testWidgetURLDismissesTabAndNestedSheets() async {
+        let app = launch("populated")
+        app.tabBars.buttons["Dishes"].tap()
+        app.buttons["Add a dish"].tap()
+        XCTAssertTrue(app.textFields["Dish name"].waitForExistence(timeout: 5))
+        app.textFields["Dish name"].tap()
+        app.textFields["Dish name"].typeText("Unsaved soup")
+        // An unrelated URL must preserve this in-memory draft, proving that the
+        // system handoff exercises a warm process rather than relaunching it.
+        await openWarm(app, path: "tomorrow")
+        XCTAssertEqual(app.textFields["Dish name"].value as? String, "Unsaved soup")
+        XCUIDevice.shared.press(.home)
+        await openWarm(app)
+        assertToday(app)
+        XCTAssertFalse(app.textFields["Dish name"].exists)
+        app.buttons["Plan dinner"].tap()
+        app.buttons["Add a dish"].tap()
+        XCTAssertTrue(app.textFields["Dish name"].waitForExistence(timeout: 5))
+        await openWarm(app)
+        assertToday(app)
+        XCTAssertFalse(app.textFields["Dish name"].exists)
+        XCTAssertFalse(app.buttons["Cancel"].exists)
+        capture("widget-route-dismissed-nested-sheet")
+        app.swipeUp()
+        app.buttons["Help plan my week"].tap()
+        XCTAssertTrue(app.buttons["Generate suggestions"].waitForExistence(timeout: 5))
+        await openWarm(app)
+        assertToday(app)
+        XCTAssertFalse(app.buttons["Generate suggestions"].exists)
+    }
+
+    @MainActor func testWidgetURLKeepsSignedOutUserAtSignIn() async {
+        let app = launch("signedOut")
+        await openWarm(app)
+        XCTAssertTrue(app.buttons["Sign in"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.tabBars.buttons["Week"].exists)
+        capture("widget-route-signed-out")
+    }
+
     func testProfileNameForOwnerAndMember() {
         var app = launch("populated")
         app.tabBars.buttons["Household"].tap()

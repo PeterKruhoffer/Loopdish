@@ -8,7 +8,10 @@ enum SimulatorFixture: String {
 
     static var current: Self? {
         let arguments = ProcessInfo.processInfo.arguments
-        guard let index = arguments.firstIndex(of: "--fixture"), arguments.indices.contains(index + 1) else { return nil }
+        guard let index = arguments.firstIndex(of: "--fixture"), arguments.indices.contains(index + 1) else {
+            // The unit-test host must not restore a real account or connect to Convex.
+            return ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil ? .signedOut : nil
+        }
         return Self(rawValue: arguments[index + 1])
     }
 
@@ -16,10 +19,12 @@ enum SimulatorFixture: String {
         workosClientID: "fixture", webURL: URL(string: "https://fixture.invalid")!,
         redirectURI: "loopdish://auth/callback")
 
-    @MainActor func populate(_ store: Store) {
+    @MainActor func populate(_ store: Store, resetNavigation: Bool = true) {
         let date = DinnerDates.calendar().date(from: DateComponents(year: 2026, month: 9, day: 11, hour: 12))!
-        store.selectedDate = date
-        store.weekAnchor = date
+        if resetNavigation {
+            store.selectedDate = date
+            store.weekAnchor = date
+        }
         store.restoring = self == .restoring
         store.signedIn = self != .signedOut
         guard self != .signedOut && self != .loading && self != .restoring else { return }
