@@ -5,7 +5,7 @@ strictDepBuilds: true
 saveExact: true
 
 overrides:
-  vite@*: npm:@voidzero-dev/vite-plus-core@0.3.0
+  vite@*: npm:@voidzero-dev/vite-plus-core@0.3.3
   vitest@*: 4.1.11
 
 peerDependencyRules:
