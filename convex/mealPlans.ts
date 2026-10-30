@@ -1,7 +1,27 @@
 import { ConvexError, v } from 'convex/values'
 import { getHousehold, getOrCreateHousehold, requireHouseholdSlug } from './_lib/households'
 import type { Doc } from './_generated/dataModel'
-import { mutation } from './_generated/server'
+import { internalMutation, mutation, type MutationCtx } from './_generated/server'
+
+// Households plan dinners by their local calendar day, which is Danish time.
+const timeZone = 'Europe/Copenhagen'
+
+async function completePlan(ctx: MutationCtx, plan: Doc<'plannedMeals'>) {
+  const dish = await ctx.db.get(plan.dishId)
+  if (!dish) throw new ConvexError('That dish no longer exists')
+
+  await ctx.db.insert('dinnerEvents', {
+    householdId: plan.householdId,
+    dishId: plan.dishId,
+    eatenOn: plan.date,
+    sourcePlanId: plan._id,
+  })
+  await ctx.db.patch(plan._id, { completedAt: Date.now() })
+  await ctx.db.patch(dish._id, {
+    lastEatenOn: dish.lastEatenOn && dish.lastEatenOn > plan.date ? dish.lastEatenOn : plan.date,
+    timesEaten: dish.timesEaten + 1,
+  })
+}
 
 function validDateKey(value: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
@@ -169,20 +189,22 @@ export const markEaten = mutation({
       throw new ConvexError('That planned meal is not in your household')
     }
     if (plan.completedAt) return
+    await completePlan(ctx, plan)
+  },
+})
 
-    const dish = await ctx.db.get(plan.dishId)
-    if (!dish) throw new ConvexError('That dish no longer exists')
-
-    await ctx.db.insert('dinnerEvents', {
-      householdId: plan.householdId,
-      dishId: plan.dishId,
-      eatenOn: plan.date,
-      sourcePlanId: plan._id,
-    })
-    await ctx.db.patch(plan._id, { completedAt: Date.now() })
-    await ctx.db.patch(dish._id, {
-      lastEatenOn: plan.date,
-      timesEaten: dish.timesEaten + 1,
-    })
+// Runs hourly from crons.ts. A dinner counts as eaten once its date has passed.
+export const completePastMeals = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    // en-CA formats dates as YYYY-MM-DD.
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone }).format(Date.now())
+    const plans = await ctx.db
+      .query('plannedMeals')
+      .withIndex('by_completed_date', (query) =>
+        query.eq('completedAt', undefined).lt('date', today),
+      )
+      .collect()
+    for (const plan of plans) await completePlan(ctx, plan)
   },
 })

@@ -43,7 +43,9 @@ export default defineSchema({
     dishId: v.id('dishes'),
     date: v.string(),
     completedAt: v.optional(v.number()),
-  }).index('by_household_date', ['householdId', 'date']),
+  })
+    .index('by_household_date', ['householdId', 'date'])
+    .index('by_completed_date', ['completedAt', 'date']),
 
   dinnerEvents: defineTable({
     householdId: v.id('households'),

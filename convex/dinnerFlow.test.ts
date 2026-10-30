@@ -238,6 +238,38 @@ describe('LoopDish dinner flow', () => {
     ).rejects.toThrow('Tacos is already in your dishes')
   })
 
+  it('marks dinners eaten once their day is over in Danish time', async () => {
+    const test = convexTest(schema, modules)
+    const t = test.withIdentity({ subject: 'user-one' })
+    const tacosId = await t.mutation(api.dishes.add, { name: 'Tacos' })
+    const soupId = await t.mutation(api.dishes.add, { name: 'Soup' })
+    const eatenPlanId = await t.mutation(api.mealPlans.plan, {
+      dishId: tacosId,
+      date: '2026-08-26',
+    })
+    await t.mutation(api.mealPlans.markEaten, { planId: eatenPlanId })
+    await t.mutation(api.mealPlans.plan, { dishId: soupId, date: '2026-08-27' })
+    await t.mutation(api.mealPlans.plan, { dishId: tacosId, date: '2026-08-28' })
+
+    // 00:30 on August 28 in Copenhagen, still August 27 in UTC.
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-08-27T22:30:00Z'))
+    await test.mutation(internal.mealPlans.completePastMeals, {})
+    await test.mutation(internal.mealPlans.completePastMeals, {})
+    vi.useRealTimers()
+
+    const dashboard = await t.query(api.dashboard.get, week)
+    const completed = Object.fromEntries(
+      dashboard.plannedMeals.map((plan) => [plan.date, plan.completedAt !== undefined]),
+    )
+    expect(completed).toEqual({ '2026-08-26': true, '2026-08-27': true, '2026-08-28': false })
+    expect(dashboard.dishes).toMatchObject([
+      { name: 'Soup', timesEaten: 1, lastEatenOn: '2026-08-27' },
+      { name: 'Tacos', timesEaten: 1, lastEatenOn: '2026-08-26' },
+    ])
+    expect(dashboard.recentMeals.map((meal) => meal.eatenOn)).toEqual(['2026-08-27', '2026-08-26'])
+  })
+
   it('applies a suggested week, reuses dishes, and preserves completed meals', async () => {
     const t = convexTest(schema, modules).withIdentity({ subject: 'user-one' })
     const tacosId = await t.mutation(api.dishes.add, { name: 'Tacos' })
