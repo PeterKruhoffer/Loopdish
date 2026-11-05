@@ -168,6 +168,15 @@ final class Store: ObservableObject {
         subscribe()
     }
 
+    func select(_ date: Date) {
+        selectedDate = date
+        guard !days.contains(where: { DinnerDates.key($0) == DinnerDates.key(date) }) else { return }
+        weekAnchor = date
+        dashboard = nil
+        suggestions = nil
+        subscribe()
+    }
+
     @discardableResult
     func perform(_ operation: () async throws -> Void) async -> Bool {
         #if DEBUG

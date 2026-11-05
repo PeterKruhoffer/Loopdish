@@ -53,7 +53,7 @@ struct AppRoot: View {
             if store.restoring { LaunchSplash().ignoresSafeArea() }
             else if store.signedIn {
                 TabView(selection: $selectedTab) {
-                    WeekView().tabItem { Label("Week", systemImage: "calendar") }.tag(0)
+                    WeekView(initialDay: store.selectedDate).tabItem { Label("Week", systemImage: "calendar") }.tag(0)
                     DishesView().tabItem { Label("Dishes", systemImage: "fork.knife") }.tag(1)
                     HistoryView().tabItem { Label("History", systemImage: "clock") }.tag(2)
                     HouseholdView().tabItem { Label("Household", systemImage: "person.2") }.tag(3)
@@ -134,6 +134,19 @@ struct WeekView: View {
     @State private var choosingDish = false
     @State private var showingSuggestions = false
     @State private var removing: Meal?
+    /// Offset from carouselOrigin of the card being shown.
+    @State private var page: Int?
+    /// Centre of the carousel's fixed day range. Swipes never change it, so each card keeps its day across weeks.
+    @State private var carouselOrigin: Date
+    /// Fractional offset of the card being shown, updated live while swiping.
+    @State private var carouselPosition: CGFloat?
+    @State private var pageWidth: CGFloat = 1
+    private let carouselRadius = 30
+
+    init(initialDay: Date) {
+        _carouselOrigin = State(initialValue: initialDay)
+        _page = State(initialValue: 0)
+    }
     var body: some View {
         Page(title: "This week") {
             HStack {
@@ -145,54 +158,55 @@ struct WeekView: View {
                 Spacer()
                 Button { store.changeWeek(1) } label: { Image(systemName: "chevron.right").frame(width: 44, height: 44) }.accessibilityLabel("Next week")
             }.disabled(store.busy)
-            HStack(spacing: 8) {
-                ForEach(store.days, id: \.self) { day in
-                    let selected = DinnerDates.key(day) == DinnerDates.key(store.selectedDate)
-                    Button { store.selectedDate = day } label: {
-                        VStack(spacing: 8) {
-                            Text(day, format: .dateTime.weekday(.narrow)).font(.caption)
-                            Text(day, format: .dateTime.day()).font(.headline)
-                            Circle().fill(store.dashboard?.plannedMeals.contains(where: { $0.date == DinnerDates.key(day) }) == true ? Palette.coral : .clear).frame(width: 5, height: 5)
-                        }.lineLimit(1).minimumScaleFactor(0.5)
-                            .frame(minWidth: 0, maxWidth: .infinity).padding(.vertical, 12)
-                            .foregroundStyle(selected ? Palette.cream : Palette.ink)
-                            .background(selected ? Palette.ink : Palette.paper, in: RoundedRectangle(cornerRadius: 22))
-                    }.accessibilityLabel(day.formatted(.dateTime.weekday(.wide).day().month(.wide).year().locale(locale)))
-                        .accessibilityIdentifier("week-day-\(DinnerDates.key(day))")
-                        .accessibilityAddTraits(selected ? .isSelected : [])
+            dayStrip
+            // Paging carousel over a fixed range of days: the selected day's card slides out as the next one slides in.
+            ScrollView(.horizontal) {
+                // Not lazy: on iOS 26, LazyHStack ignores accessibilityHidden, which would expose off-screen days.
+                HStack(spacing: 0) {
+                    ForEach(-carouselRadius...carouselRadius, id: \.self) { offset in
+                        let day = carouselDay(at: offset)
+                        let hidden = DinnerDates.key(day) != DinnerDates.key(store.selectedDate)
+                        // Off-screen cards are hidden, so only the shown day's controls are exposed.
+                        card(for: day, animated: abs(offset - (page ?? 0)) <= 1)
+                            .padding(.horizontal, 10).containerRelativeFrame(.horizontal)
+                            .modifier(HiddenWhen(hidden: hidden))
+                    }
+                }.scrollTargetLayout()
+                    .onGeometryChange(for: CGFloat.self) { $0.frame(in: .scrollView).minX } action: { minX in
+                        let position = -minX / pageWidth - CGFloat(carouselRadius)
+                        carouselPosition = position
+                        // Re-centre only once a swipe has settled on the last card. Re-centring mid-scroll
+                        // lets the still-moving scroll view report its old index against the new origin.
+                        if let page, abs(page) == carouselRadius, abs(position - CGFloat(page)) < 0.01 {
+                            carouselOrigin = carouselDay(at: page)
+                            self.page = 0
+                        }
+                    }
+            }
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { pageWidth = max($0, 1) }
+            // Pages are 20 pt wider than the column so cards keep the column width with a gap between them.
+            .padding(.horizontal, -10)
+            .scrollIndicators(.hidden).scrollClipDisabled().scrollTargetBehavior(.paging)
+            // The origin is the day selected when the view was created, so the centre of the range is the right card.
+            .defaultScrollAnchor(.center).scrollPosition(id: $page).scrollDisabled(store.busy)
+            .onChange(of: DinnerDates.key(store.selectedDate)) {
+                // Strip taps and week arrows jump straight to the card; only swipes animate.
+                // A jump outside the range re-centres on the new day.
+                guard let offset = carouselOffset(of: store.selectedDate) else {
+                    carouselOrigin = store.selectedDate
+                    page = 0
+                    return
                 }
+                if page != offset { page = offset }
+            }
+            .onChange(of: page) { _, offset in
+                if let offset, offset != carouselOffset(of: store.selectedDate) { store.select(carouselDay(at: offset)) }
             }
             if let dashboard = store.dashboard {
-                let meal = dashboard.plannedMeals.first { $0.date == DinnerDates.key(store.selectedDate) }
-                VStack(alignment: .leading, spacing: 24) {
-                    Text(store.selectedDate, format: .dateTime.weekday(.wide).month(.abbreviated).day()).font(.subheadline.bold())
-                        .fixedSize(horizontal: false, vertical: true)
-                    Image(systemName: "takeoutbag.and.cup.and.straw").font(.system(size: 64)).frame(maxWidth: .infinity, alignment: .trailing).accessibilityHidden(true)
-                    Group {
-                        if let meal { Text(meal.dishName) }
-                        else { Text("What's for dinner?") }
-                    }.font(.largeTitle.bold())
-                    if let meal {
-                        if meal.completedAt != nil { Label("Dinner enjoyed", systemImage: "checkmark.circle.fill") }
-                        else {
-                            Button("We ate this") { Task { await store.updateMeal(meal, eaten: true) } }.buttonStyle(PrimaryButton())
-                            HStack {
-                                Button("Change dinner") { choosingDish = true }
-                                Spacer()
-                                Button("Remove", role: .destructive) { removing = meal }
-                            }
-                        }
-                    } else {
-                        Text("Choose a dish from your rotation.")
-                        Button("Plan dinner") { choosingDish = true }.buttonStyle(PrimaryButton())
-                    }
-                }.padding(24).frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Palette.coral, in: RoundedRectangle(cornerRadius: 28)).disabled(store.busy)
                 Button { showingSuggestions = true } label: { Label("Help plan my week", systemImage: "sparkles") }
                     .disabled(dashboard.dishes.isEmpty || store.busy)
                 if let notice = store.notice { Text(notice).font(.footnote) }
             } else {
-                ProgressView("Loading dinners…")
                 Button("Retry") { store.subscribe() }
             }
         }
@@ -200,6 +214,187 @@ struct WeekView: View {
         .sheet(isPresented: $showingSuggestions) { SuggestionsView(weekly: true) }
         .confirmationDialog("Remove this dinner?", isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } })) {
             Button("Remove", role: .destructive) { if let meal = removing { Task { await store.updateMeal(meal, eaten: false) } }; removing = nil }
+        }
+    }
+
+    /// One ink capsule follows the carousel, stretching and thinning between days like slime, then settling into a pill.
+    private var dayStrip: some View {
+        let index = pillIndex
+        let fraction = index - floor(index)
+        let stretch = 0.6 * sin(.pi * fraction)
+        return HStack(spacing: 8) {
+            ForEach(Array(store.days.enumerated()), id: \.element) { i, day in
+                let selected = DinnerDates.key(day) == DinnerDates.key(store.selectedDate)
+                Button { store.selectedDate = day } label: {
+                    // The label is drawn once and turns cream only where the capsule covers it,
+                    // so VoiceOver reads one letter and number.
+                    pillLabel(for: day).foregroundStyle(Palette.ink)
+                        .overlay { SlimeCapsule(offset: index - CGFloat(i), stretch: stretch).fill(Palette.cream).blendMode(.sourceAtop) }
+                        .compositingGroup()
+                        .overlay(alignment: .bottom) { plannedDot(for: day) }
+                        // Keeps large Dynamic Type inside the pill, as before.
+                        .clipShape(RoundedRectangle(cornerRadius: 22))
+                }.accessibilityLabel(day.formatted(.dateTime.weekday(.wide).day().month(.wide).year().locale(locale)))
+                    .accessibilityIdentifier("week-day-\(DinnerDates.key(day))")
+                    .accessibilityAddTraits(selected ? .isSelected : [])
+            }
+        }
+        .background {
+            // Drawn once behind the strip so the capsule stays visible in the gaps between pills.
+            GeometryReader { proxy in
+                SlimeCapsule(offset: index, stretch: stretch).fill(Palette.ink).frame(width: (proxy.size.width + 8) / 7 - 8)
+            }
+        }
+        .background {
+            HStack(spacing: 8) { ForEach(0..<7, id: \.self) { _ in RoundedRectangle(cornerRadius: 22).fill(Palette.paper) } }
+        }
+        // While crossing a week boundary the capsule leaves one edge and enters from the other.
+        .clipped()
+    }
+
+    /// The capsule's fractional position in this week's pills, following the carousel while it scrolls.
+    /// Outside 0...6 while crossing into another week.
+    private var pillIndex: CGFloat {
+        let calendar = DinnerDates.calendar()
+        let weekStart = calendar.startOfDay(for: store.days[0])
+        func days(to day: Date) -> CGFloat {
+            CGFloat(calendar.dateComponents([.day], from: weekStart, to: calendar.startOfDay(for: day)).day!)
+        }
+        guard let carouselPosition else { return days(to: store.selectedDate) }
+        return days(to: carouselOrigin) + carouselPosition
+    }
+
+    private func carouselDay(at offset: Int) -> Date {
+        let calendar = DinnerDates.calendar()
+        return calendar.date(byAdding: .day, value: offset, to: calendar.startOfDay(for: carouselOrigin))!
+    }
+
+    /// The day's offset from carouselOrigin, or nil when it is outside the carousel's range.
+    private func carouselOffset(of day: Date) -> Int? {
+        let calendar = DinnerDates.calendar()
+        let offset = calendar.dateComponents([.day], from: calendar.startOfDay(for: carouselOrigin),
+                                             to: calendar.startOfDay(for: day)).day!
+        return abs(offset) <= carouselRadius ? offset : nil
+    }
+
+    private func pillLabel(for day: Date) -> some View {
+        VStack(spacing: 8) {
+            Text(day, format: .dateTime.weekday(.narrow)).font(.caption)
+            Text(day, format: .dateTime.day()).font(.headline)
+            // Room for the planned-dinner dot, drawn on top by plannedDot(for:) so the capsule never tints it.
+            Color.clear.frame(width: 5, height: 5)
+        }.lineLimit(1).minimumScaleFactor(0.5)
+            .frame(minWidth: 0, maxWidth: .infinity).padding(.vertical, 12)
+    }
+
+    private func plannedDot(for day: Date) -> some View {
+        Circle().fill(store.dashboard?.plannedMeals.contains(where: { $0.date == DinnerDates.key(day) }) == true ? Palette.coral : .clear)
+            .frame(width: 5, height: 5).padding(.bottom, 12)
+    }
+
+    private func isLoaded(_ day: Date) -> Bool {
+        store.days.contains { DinnerDates.key($0) == DinnerDates.key(day) }
+    }
+
+    private func card(for day: Date, animated: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 24) {
+            Text(day, format: .dateTime.weekday(.wide).month(.abbreviated).day()).font(.subheadline.bold())
+                .fixedSize(horizontal: false, vertical: true)
+            Image(systemName: "takeoutbag.and.cup.and.straw").font(.system(size: 64)).frame(maxWidth: .infinity, alignment: .trailing).accessibilityHidden(true)
+            ZStack(alignment: .topLeading) {
+                // Reserves the tallest layout, this week's longest planned dinner, so cards keep one height while swiping and loading.
+                ZStack(alignment: .topLeading) {
+                    ForEach(Set([""] + (store.dashboard?.plannedMeals.map(\.dishName) ?? [])).sorted(), id: \.self) { name in
+                        VStack(alignment: .leading, spacing: 24) {
+                            Text(verbatim: name.isEmpty ? "Dinner" : name).font(.largeTitle.bold())
+                            Button("We ate this") {}.buttonStyle(PrimaryButton())
+                            Button("Change dinner") {}
+                        }
+                    }
+                }.hidden().accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 24) {
+                    // Days outside the loaded week show a placeholder until a swipe selects them and their week loads.
+                    if let dashboard = store.dashboard, isLoaded(day) {
+                        let meal = dashboard.plannedMeals.first { $0.date == DinnerDates.key(day) }
+                        Group {
+                            if let meal { Text(meal.dishName) }
+                            else { Text("What's for dinner?") }
+                        }.font(.largeTitle.bold())
+                        if let meal {
+                            if meal.completedAt != nil { Label("Dinner enjoyed", systemImage: "checkmark.circle.fill") }
+                            else {
+                                Button("We ate this") { Task { await store.updateMeal(meal, eaten: true) } }.buttonStyle(PrimaryButton())
+                                HStack {
+                                    Button("Change dinner") { choosingDish = true }
+                                    Spacer()
+                                    Button("Remove", role: .destructive) { removing = meal }
+                                }
+                            }
+                        } else {
+                            Text("Choose a dish from your rotation.")
+                            Button("Plan dinner") { choosingDish = true }.buttonStyle(PrimaryButton())
+                        }
+                    } else {
+                        VStack(alignment: .leading, spacing: 24) {
+                            VStack(alignment: .leading, spacing: 10) {
+                                RoundedRectangle(cornerRadius: 8).frame(height: 30)
+                                RoundedRectangle(cornerRadius: 8).frame(width: 160, height: 30)
+                            }
+                            RoundedRectangle(cornerRadius: 6).frame(width: 220, height: 16)
+                            Capsule().frame(width: 150, height: 50)
+                        }.foregroundStyle(Palette.ink.opacity(0.1))
+                            .accessibilityElement(children: .ignore).accessibilityLabel("Loading dinners…")
+                    }
+                }
+            }
+        }.padding(24)
+            // Content keeps its natural height so titles wrap; the frame then stretches to the tallest card on screen.
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .background(Palette.coral, in: RoundedRectangle(cornerRadius: 28))
+            // Only the shown card and its neighbours animate, so off-screen placeholders cost nothing.
+            .overlay { if animated && (store.dashboard == nil || !isLoaded(day)) { Shimmer() } }
+            .clipShape(RoundedRectangle(cornerRadius: 28)).disabled(store.busy)
+    }
+}
+
+/// The day strip's ink capsule, in the coordinates of one pill. `offset` is the capsule's distance from
+/// that pill in pill steps; `stretch` widens and thins it between days.
+private struct SlimeCapsule: Shape {
+    var offset: CGFloat
+    var stretch: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        let step = rect.width + 8
+        let size = CGSize(width: rect.width + stretch * step, height: rect.height * (1 - 0.18 * min(stretch, 1)))
+        return Path(roundedRect: CGRect(x: rect.midX + offset * step - size.width / 2, y: rect.midY - size.height / 2,
+                                        width: size.width, height: size.height), cornerRadius: 22)
+    }
+}
+
+/// Hides off-screen cards from accessibility. `.accessibilityHidden(false)` on the shown card would
+/// un-hide its decorative image, so the modifier is only applied when hiding.
+private struct HiddenWhen: ViewModifier {
+    let hidden: Bool
+    @ViewBuilder func body(content: Content) -> some View {
+        if hidden { content.accessibilityHidden(true) } else { content }
+    }
+}
+
+/// A soft highlight sweeping across a loading card.
+private struct Shimmer: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    var body: some View {
+        if !reduceMotion {
+            TimelineView(.animation) { timeline in
+                let cycle = 1.6
+                let phase = timeline.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: cycle) / cycle
+                GeometryReader { proxy in
+                    LinearGradient(colors: [.clear, Palette.paper.opacity(0.45), .clear], startPoint: .leading, endPoint: .trailing)
+                        .frame(width: proxy.size.width * 0.6)
+                        .offset(x: proxy.size.width * (1.6 * phase - 0.6))
+                }
+            }.allowsHitTesting(false).accessibilityHidden(true)
         }
     }
 }

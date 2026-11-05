@@ -291,6 +291,32 @@ final class LoopDishUITests: XCTestCase {
         XCTAssertTrue(friday.isSelected)
     }
 
+    func testSwipingDinnerCardChangesDayAcrossWeeks() {
+        let app = launch("populated")
+        let pasta = app.staticTexts["Roasted tomato pasta"]
+        XCTAssertTrue(pasta.waitForExistence(timeout: 10))
+        // The pill fill must not duplicate the day's letter and number for VoiceOver.
+        XCTAssertEqual(app.buttons["week-day-2026-09-11"].descendants(matching: .staticText).allElementsBoundByIndex.map(\.label), ["F", "11"])
+        pasta.swipeLeft()
+        XCTAssertTrue(app.buttons["week-day-2026-09-12"].isSelected)
+        let empty = app.staticTexts["What's for dinner?"]
+        empty.swipeLeft()
+        empty.swipeLeft()
+        XCTAssertTrue(app.buttons["week-day-2026-09-14"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["week-day-2026-09-14"].isSelected)
+        capture("swipe-next-week-monday")
+        empty.swipeRight()
+        XCTAssertTrue(app.buttons["week-day-2026-09-13"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["week-day-2026-09-13"].isSelected)
+        empty.swipeRight()
+        empty.swipeRight()
+        XCTAssertTrue(app.buttons["week-day-2026-09-11"].isSelected)
+        XCTAssertTrue(pasta.exists)
+        // A fling still moves exactly one day.
+        pasta.swipeLeft(velocity: .fast)
+        XCTAssertTrue(app.buttons["week-day-2026-09-12"].isSelected)
+    }
+
     func testRestorationSplashAndExistingSignIn() {
         var app = launch("restoring")
         XCTAssertTrue(app.images["launch-brand"].waitForExistence(timeout: 10))
